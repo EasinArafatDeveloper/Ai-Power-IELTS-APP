@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { Geist, Geist_Mono } from 'next/font/google';
+import { Geist, Geist_Mono, Plus_Jakarta_Sans } from 'next/font/google';
 import './globals.css';
 import { AuthProvider } from '@/context/auth-context';
 import QueryProvider from '@/components/providers/query-provider';
@@ -15,9 +15,14 @@ const geistMono = Geist_Mono({
   subsets: ['latin'],
 });
 
+const plusJakartaSans = Plus_Jakarta_Sans({
+  variable: '--font-plus-jakarta',
+  subsets: ['latin'],
+});
+
 export const metadata: Metadata = {
-  title: 'AI IELTS Coach - Premium IELTS Preparation',
-  description: 'Personalized AI Coach to guide you from your current level to your target IELTS band.',
+  title: 'Lumina IELTS - Premium AI IELTS Coach',
+  description: 'A premium, AI-first IELTS preparation platform designed to help you secure your target band score with custom daily roadmap guides.',
 };
 
 export default function RootLayout({
@@ -28,7 +33,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${plusJakartaSans.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-slate-50 text-slate-900 selection:bg-indigo-500/10 selection:text-indigo-900">
         <QueryProvider>

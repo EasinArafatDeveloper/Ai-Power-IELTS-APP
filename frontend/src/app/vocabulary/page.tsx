@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
-import { BookOpen, CheckCircle, ChevronLeft, ChevronRight, RotateCw, Sparkles, Loader2, Bookmark } from 'lucide-react';
+import { BookOpen, CheckCircle, ChevronLeft, ChevronRight, RotateCw, Sparkles, Loader2, Bookmark, Lightbulb } from 'lucide-react';
 import toast from 'react-hot-toast';
 import ProtectedRoute from '@/components/shared/protected-route';
 
@@ -33,7 +33,7 @@ export default function VocabularyPage() {
   );
 }
 
-function VocabularyWorkspace() {
+export function VocabularyWorkspace() {
   const router = useRouter();
   const queryClient = useQueryClient();
 
@@ -65,180 +65,165 @@ function VocabularyWorkspace() {
 
   const handleNext = () => {
     setIsFlipped(false);
-    setTimeout(() => {
+    if (words.length > 0) {
       setCurrentIndex((prev) => (prev + 1) % words.length);
-    }, 150);
+    }
   };
 
   const handlePrev = () => {
     setIsFlipped(false);
-    setTimeout(() => {
+    if (words.length > 0) {
       setCurrentIndex((prev) => (prev - 1 + words.length) % words.length);
-    }, 150);
+    }
   };
+
+  const currentWord = words[currentIndex];
 
   if (isLoading) {
     return (
-      <div className="flex h-screen w-screen items-center justify-center bg-slate-950">
-        <Loader2 className="h-10 w-10 animate-spin text-indigo-500" />
+      <div className="py-12 flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-indigo-650" />
       </div>
     );
   }
 
   if (error || words.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-slate-950 text-center px-4">
-        <BookOpen className="h-12 w-12 text-slate-655 mb-3" />
-        <h3 className="text-lg font-bold text-white">No Vocabulary Words Seeding</h3>
-        <p className="text-slate-400 text-sm mt-1">Please try restarting the backend or check seeds.</p>
-        <button
-          onClick={() => router.push('/dashboard')}
-          className="mt-6 text-sm font-semibold text-indigo-400"
-        >
-          Return to Dashboard
-        </button>
+      <div className="p-6 bg-white border border-slate-200 rounded-2xl text-center">
+        <p className="text-sm text-slate-500 font-semibold">No vocabulary words available at the moment.</p>
       </div>
     );
   }
 
-  const activeWord = words[currentIndex];
-
   return (
-    <div className="relative flex flex-col justify-between min-h-screen bg-slate-950 px-4 py-8 sm:px-6 lg:px-8 overflow-hidden">
-      {/* Background gradients */}
-      <div className="absolute top-0 left-0 w-96 h-96 bg-indigo-500/5 rounded-full blur-3xl" />
-      <div className="absolute bottom-0 right-0 w-96 h-96 bg-sky-500/5 rounded-full blur-3xl" />
-
-      {/* Header */}
-      <div className="max-w-xl mx-auto w-full z-10 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => router.push('/dashboard')}
-            className="p-2 rounded-xl bg-slate-900 border border-slate-850 hover:border-slate-700 text-slate-400 hover:text-slate-200 transition-all"
-          >
-            <ChevronLeft className="h-5 w-5" />
-          </button>
-          <div>
-            <h2 className="text-base font-bold text-white">IELTS Vocabulary Trainer</h2>
-            <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">Spaced Repetition Practice</p>
-          </div>
-        </div>
-
-        <span className="text-xs font-mono text-slate-500">
-          {currentIndex + 1} of {words.length} words
+    <div className="space-y-6 max-w-xl mx-auto bg-slate-50 min-h-[450px]">
+      
+      {/* Dynamic Header */}
+      <div className="flex justify-between items-center text-xs font-semibold text-slate-450 border-b border-slate-200 pb-2">
+        <span>Word Card {currentIndex + 1} of {words.length}</span>
+        <span className="font-mono bg-indigo-50 text-indigo-700 border border-indigo-100 px-2 py-0.5 rounded">
+          Review Session
         </span>
       </div>
 
-      {/* Flashcard Area */}
-      <div className="max-w-md mx-auto w-full z-10 my-auto py-12 flex justify-center items-center">
-        <div className="relative w-full h-80 perspective" style={{ perspective: 1200 }}>
-          <motion.div
-            animate={{ rotateY: isFlipped ? 180 : 0 }}
-            transition={{ duration: 0.6, ease: [0.23, 1, 0.32, 1] }}
-            style={{ transformStyle: 'preserve-3d' }}
-            onClick={() => setIsFlipped(!isFlipped)}
-            className="w-full h-full relative cursor-pointer select-none"
-          >
-            {/* Front Side */}
-            <div
-              style={{ backfaceVisibility: 'hidden' }}
-              className="absolute inset-0 bg-slate-900 border border-slate-850/80 rounded-3xl p-8 flex flex-col justify-between shadow-2xl"
-            >
+      {/* 3D Flip Card Container */}
+      <div 
+        onClick={() => setIsFlipped(!isFlipped)}
+        className="w-full h-80 relative cursor-pointer select-none perspective-1000"
+      >
+        <motion.div
+          animate={{ rotateY: isFlipped ? 180 : 0 }}
+          transition={{ duration: 0.6, ease: 'easeOut' }}
+          className="w-full h-full relative preserve-3d"
+        >
+          {/* FRONT Side */}
+          <div className="absolute inset-0 w-full h-full bg-white border border-slate-200 rounded-3xl p-8 flex flex-col justify-between items-center text-center shadow-md backface-hidden">
+            <span className="text-[9px] uppercase font-extrabold tracking-widest text-slate-400">
+              Click Card to reveal meaning
+            </span>
+            
+            <div className="space-y-2">
+              <h2 className="text-3xl font-black text-slate-900 font-sans tracking-tight">{currentWord.word}</h2>
+              <span className="inline-block text-xs font-bold text-slate-400 italic">
+                ({currentWord.partOfSpeech})
+              </span>
+            </div>
+
+            <div className="flex items-center gap-1.5 text-xs text-indigo-650 font-bold bg-indigo-50 border border-indigo-100 px-3 py-1 rounded-full">
+              <Sparkles className="h-3.5 w-3.5" />
+              <span>IELTS Band {currentWord.ieltsBandLevel.toFixed(1)} Vocabulary</span>
+            </div>
+          </div>
+
+          {/* BACK Side */}
+          <div className="absolute inset-0 w-full h-full bg-white border border-slate-200 rounded-3xl p-8 flex flex-col justify-between shadow-md backface-hidden rotate-y-180">
+            <div className="space-y-4">
               <div className="flex justify-between items-start">
-                <span className="text-[10px] font-extrabold uppercase px-2.5 py-1 rounded-full border text-indigo-400 bg-indigo-500/10 border-indigo-500/20 tracking-wider">
-                  {activeWord.category}
-                </span>
-                <span className="text-[11px] font-mono text-slate-500 flex items-center gap-1">
-                  <Bookmark className="h-3.5 w-3.5" />
-                  <span>Band {activeWord.ieltsBandLevel.toFixed(1)}</span>
+                <div>
+                  <h3 className="text-lg font-black text-slate-900">{currentWord.word}</h3>
+                  <span className="text-[10px] text-slate-400 font-bold italic">({currentWord.partOfSpeech})</span>
+                </div>
+                <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 border border-indigo-100 text-indigo-700 bg-indigo-50 rounded-full">
+                  IELTS Band {currentWord.ieltsBandLevel}
                 </span>
               </div>
 
-              <div className="text-center space-y-2 my-auto">
-                <h3 className="text-3xl font-extrabold text-white tracking-tight">{activeWord.word}</h3>
-                <p className="text-xs font-medium text-slate-500 italic">({activeWord.partOfSpeech})</p>
+              {/* Definition */}
+              <div className="space-y-1">
+                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block">Definition</span>
+                <p className="text-xs text-slate-800 font-semibold leading-relaxed">
+                  {currentWord.definition}
+                </p>
               </div>
 
-              <div className="flex items-center justify-center gap-1.5 text-xs text-slate-500 font-bold uppercase tracking-wider">
-                <RotateCw className="h-3.5 w-3.5" />
-                <span>Click Card to Flip</span>
+              {/* Translation Tooltip support for Bangladeshi students */}
+              <div className="p-2.5 rounded-lg bg-indigo-50/50 border border-indigo-100/50 flex gap-2 items-start text-xs text-indigo-900 font-semibold">
+                <Lightbulb className="h-4.5 w-4.5 text-indigo-600 shrink-0 mt-0.5" />
+                <div>
+                  <span className="text-[9px] text-indigo-600 font-extrabold block uppercase tracking-wider">Synonyms</span>
+                  <div className="flex flex-wrap gap-1 mt-0.5">
+                    {currentWord.synonyms.map((s, idx) => (
+                      <span key={idx} className="px-1.5 py-0.5 bg-indigo-100/60 rounded text-[10px] font-sans">
+                        {s}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Example Context */}
+              <div className="space-y-1.5">
+                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block">Example context</span>
+                {currentWord.examples.map((ex, idx) => (
+                  <div key={idx} className="text-xs leading-relaxed text-slate-700 pl-2 border-l-2 border-slate-200">
+                    <p className="font-semibold italic">"{ex.sentence}"</p>
+                    <p className="text-[11px] text-slate-450 mt-0.5 font-bold">Bangla translation: {ex.translation}</p>
+                  </div>
+                ))}
               </div>
             </div>
 
-            {/* Back Side */}
-            <div
-              style={{
-                backfaceVisibility: 'hidden',
-                transform: 'rotateY(180deg)',
-              }}
-              className="absolute inset-0 bg-slate-900 border border-slate-850/80 rounded-3xl p-8 flex flex-col justify-between shadow-2xl"
-            >
-              <div className="space-y-4">
-                <div className="flex justify-between items-start border-b border-slate-850 pb-2">
-                  <span className="text-[10px] font-extrabold uppercase text-slate-500 tracking-wider">Definition</span>
-                  <span className="text-xs text-slate-400 font-bold italic">"{activeWord.word}"</span>
-                </div>
-                <p className="text-sm text-slate-200 leading-relaxed font-medium">{activeWord.definition}</p>
-                
-                <div className="space-y-1">
-                  <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider block">Synonyms</span>
-                  <p className="text-xs text-slate-400 font-semibold">{activeWord.synonyms.join(', ')}</p>
-                </div>
-
-                <div className="space-y-1 border-t border-slate-850 pt-3">
-                  <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider block">Example Context</span>
-                  <p className="text-xs text-slate-300 italic leading-relaxed">"{activeWord.examples[0]?.sentence}"</p>
-                  <p className="text-[11px] text-slate-500 mt-1">{activeWord.examples[0]?.translation}</p>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-center gap-1.5 text-xs text-slate-500 font-bold uppercase tracking-wider pt-2 border-t border-slate-850">
-                <RotateCw className="h-3.5 w-3.5" />
-                <span>Click to View Front</span>
-              </div>
+            <div className="text-center text-[9px] text-slate-450 font-bold uppercase tracking-widest pt-2 border-t border-slate-100">
+              Click again to flip back
             </div>
-          </motion.div>
-        </div>
+          </div>
+
+        </motion.div>
       </div>
 
-      {/* Navigation Controls */}
-      <div className="max-w-xl mx-auto w-full z-10 flex flex-col gap-4 items-center">
-        {/* Swiping action buttons */}
-        <div className="flex gap-4 w-full justify-center">
+      {/* Action Deck Buttons */}
+      <div className="flex justify-between items-center gap-4">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handlePrev}
+            className="flex items-center justify-center p-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-500 hover:text-slate-900 transition-all shadow-sm"
+          >
+            <ChevronLeft className="h-5 w-5" />
+          </button>
           <button
             onClick={handleNext}
-            className="flex-1 max-w-[140px] py-3 rounded-xl border border-slate-800 bg-slate-950 text-slate-400 hover:text-white text-xs font-bold hover:border-slate-700 transition-all text-center"
+            className="flex items-center justify-center p-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-500 hover:text-slate-900 transition-all shadow-sm"
           >
-            Still Learning
-          </button>
-          
-          <button
-            onClick={() => masterMutation.mutate(activeWord.word)}
-            disabled={masterMutation.isPending}
-            className="flex-1 max-w-[180px] py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all shadow-md shadow-emerald-500/10 flex items-center justify-center gap-1.5"
-          >
-            {masterMutation.isPending ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <>
-                <CheckCircle className="h-4 w-4" />
-                <span>I Know This!</span>
-              </>
-            )}
+            <ChevronRight className="h-5 w-5" />
           </button>
         </div>
 
-        {/* Left/Right controls */}
-        <div className="flex items-center gap-6 text-slate-500">
-          <button onClick={handlePrev} className="hover:text-slate-200 transition-colors">
-            <ChevronLeft className="h-6 w-6" />
-          </button>
-          <span className="text-xs font-semibold uppercase tracking-widest">Card Navigation</span>
-          <button onClick={handleNext} className="hover:text-slate-200 transition-colors">
-            <ChevronRight className="h-6 w-6" />
-          </button>
-        </div>
+        <button
+          onClick={() => masterMutation.mutate(currentWord.word)}
+          disabled={masterMutation.isPending}
+          className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all shadow-md shadow-emerald-650/10 disabled:opacity-50"
+        >
+          {masterMutation.isPending ? (
+            <Loader2 className="h-4.5 w-4.5 animate-spin" />
+          ) : (
+            <>
+              <CheckCircle className="h-4.5 w-4.5" />
+              <span>Mark Word as Mastered</span>
+            </>
+          )}
+        </button>
       </div>
+
     </div>
   );
 }

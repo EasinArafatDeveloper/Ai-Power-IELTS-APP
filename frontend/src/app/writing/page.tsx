@@ -2,38 +2,37 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   BookOpen,
+  Edit3,
   Clock,
-  CheckCircle2,
-  ChevronLeft,
-  ChevronRight,
-  Loader2,
-  Award,
-  Sparkles,
-  FileText,
+  CheckCircle,
   AlertTriangle,
-  RotateCcw,
-  BookOpenCheck,
-  LayoutGrid
+  ChevronRight,
+  TrendingUp,
+  Award,
+  Loader2,
+  ChevronLeft,
+  RefreshCw,
+  Lightbulb
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import ProtectedRoute from '@/components/shared/protected-route';
 
 interface Prompt {
-  id: string;
+  _id: string;
   title: string;
-  type: 'writing_task_1' | 'writing_task_2';
-  promptText: string;
-  estimatedMinutes: number;
-  wordTarget: string;
+  taskType: 'writing_task_1' | 'writing_task_2';
+  question: string;
+  sampleResponse?: string;
 }
 
 interface Evaluation {
   overallBand: number;
-  scores: {
+  criteriaScores: {
     taskAchievement: number;
     coherenceCohesion: number;
     lexicalResource: number;
@@ -57,10 +56,10 @@ export default function WritingPracticePage() {
   );
 }
 
-function WritingWorkspace() {
+export function WritingWorkspace() {
   const router = useRouter();
 
-  // Navigation states: 'select' | 'write' | 'evaluating' | 'result'
+  // Navigation stages: 'select' | 'write' | 'evaluating' | 'result'
   const [stage, setStage] = useState<'select' | 'write' | 'evaluating' | 'result'>('select');
 
   // API states
@@ -78,85 +77,81 @@ function WritingWorkspace() {
   // Result state
   const [evaluation, setEvaluation] = useState<Evaluation | null>(null);
 
-  // Word count calculator
-  const wordCount = submissionText.trim().split(/\s+/).filter(Boolean).length;
+  const queryClient = useQueryClient();
 
   useEffect(() => {
+    async function fetchPrompts() {
+      try {
+        const res = await api.get('/writing/prompts');
+        setPrompts(res.data);
+      } catch (err) {
+        toast.error('Failed to load essay prompts');
+      } finally {
+        setLoadingPrompts(false);
+      }
+    }
     fetchPrompts();
   }, []);
 
+  // Timer Countdown Logic
   useEffect(() => {
-    if (stage === 'write' && isRunning) {
+    if (isRunning && timeLeft > 0) {
       timerRef.current = setInterval(() => {
-        setTimeLeft((prev) => {
-          if (prev <= 1) {
-            clearInterval(timerRef.current!);
-            setIsRunning(false);
-            toast.error("Time's up! Submit your essay now.");
-            return 0;
-          }
-          return prev - 1;
-        });
+        setTimeLeft((prev) => prev - 1);
         setSecondsElapsed((prev) => prev + 1);
       }, 1000);
-    } else {
-      if (timerRef.current) clearInterval(timerRef.current);
+    } else if (timeLeft === 0 && isRunning) {
+      setIsRunning(false);
+      handleFinishWriting();
+      toast.error("Time is up! Submitting essay response.");
     }
-
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [stage, isRunning]);
+  }, [isRunning, timeLeft]);
 
-  const fetchPrompts = async () => {
-    setLoadingPrompts(true);
-    try {
-      const response = await api.get('/writing/prompts');
-      setPrompts(response.data);
-    } catch (e: any) {
-      toast.error('Failed to load writing prompts');
-    } finally {
-      setLoadingPrompts(false);
-    }
-  };
-
-  const startWriting = (prompt: Prompt) => {
+  const handleStartTask = (prompt: Prompt) => {
     setSelectedPrompt(prompt);
     setSubmissionText('');
-    setTimeLeft(prompt.estimatedMinutes * 60);
+    setStage('write');
+    // Task 1 gets 20 mins, Task 2 gets 40 mins
+    setTimeLeft(prompt.taskType === 'writing_task_1' ? 20 * 60 : 40 * 60);
     setSecondsElapsed(0);
     setIsRunning(true);
-    setStage('write');
   };
 
-  const handleEvaluate = async () => {
-    if (!selectedPrompt) return;
-    const minWords = selectedPrompt.type === 'writing_task_1' ? 40 : 80;
-    if (wordCount < minWords) {
-      toast.error(`Please write a comprehensive response (at least ${minWords} words)`);
+  const evaluateMutation = useMutation({
+    mutationFn: async (payload: { promptId: string; submissionText: string; timeTakenSeconds: number }) => {
+      const response = await api.post('/writing/evaluate', payload);
+      return response.data;
+    },
+    onSuccess: (data) => {
+      setEvaluation(data.evaluation);
+      setStage('result');
+      queryClient.invalidateQueries({ queryKey: ['user-progress'] });
+      toast.success('Essay evaluated successfully!');
+    },
+    onError: (err: any) => {
+      setStage('write');
+      toast.error(err.response?.data?.message || 'Failed to evaluate essay');
+    },
+  });
+
+  const handleFinishWriting = () => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    setIsRunning(false);
+
+    if (submissionText.trim().length < 50) {
+      toast.error('Your submission must be at least 50 characters long.');
       return;
     }
 
-    setIsRunning(false);
     setStage('evaluating');
-
-    try {
-      const response = await api.post('/writing/evaluate', {
-        prompt: selectedPrompt.promptText,
-        submission: submissionText,
-        taskType: selectedPrompt.type,
-        durationSeconds: secondsElapsed,
-      });
-
-      setEvaluation(response.data.evaluation);
-      toast.success('AI evaluation report generated!');
-      setStage('result');
-    } catch (error: any) {
-      console.error(error);
-      toast.error(error.response?.data?.message || 'AI evaluator error. Please try again.');
-      setStage('write');
-      setIsRunning(true);
-    }
+    evaluateMutation.mutate({
+      promptId: selectedPrompt?._id || '',
+      submissionText,
+      timeTakenSeconds: secondsElapsed,
+    });
   };
 
   const formatTime = (seconds: number) => {
@@ -165,282 +160,299 @@ function WritingWorkspace() {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const renderSelection = () => (
-    <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <button
-          onClick={() => router.push('/dashboard')}
-          className="p-2 rounded-xl bg-slate-900 border border-slate-850 hover:border-slate-700 text-slate-400 hover:text-slate-200 transition-all"
-        >
-          <ChevronLeft className="h-5 w-5" />
-        </button>
-        <div>
-          <h2 className="text-xl font-bold text-white">AI Writing Coach</h2>
-          <p className="text-xs text-slate-450">Improve your structural writing metrics with instant criteria-level grades.</p>
-        </div>
+  const getWordCount = (text: string) => {
+    if (!text.trim()) return 0;
+    return text.trim().split(/\s+/).length;
+  };
+
+  if (loadingPrompts) {
+    return (
+      <div className="py-12 flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
       </div>
-
-      {loadingPrompts ? (
-        <div className="space-y-4">
-          {[1, 2].map((n) => (
-            <div key={n} className="h-32 bg-slate-900/40 border border-slate-850 rounded-xl animate-pulse" />
-          ))}
-        </div>
-      ) : (
-        <div className="grid gap-4 sm:grid-cols-2">
-          {prompts.map((p) => (
-            <div
-              key={p.id}
-              className="flex flex-col justify-between p-6 bg-slate-900/50 border border-slate-850/80 rounded-2xl hover:border-indigo-500/50 hover:shadow-lg hover:shadow-indigo-500/5 transition-all group"
-            >
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full border ${
-                    p.type === 'writing_task_1'
-                      ? 'text-sky-400 bg-sky-500/10 border-sky-500/20'
-                      : 'text-violet-400 bg-violet-500/10 border-violet-500/20'
-                  }`}>
-                    {p.type === 'writing_task_1' ? 'Task 1 (Academic)' : 'Task 2 (Essay)'}
-                  </span>
-                  <div className="flex items-center gap-1 text-[11px] text-slate-550 font-bold">
-                    <Clock className="h-3.5 w-3.5 text-indigo-400" />
-                    <span>{p.estimatedMinutes} mins</span>
-                  </div>
-                </div>
-
-                <h3 className="font-bold text-slate-200 group-hover:text-white transition-colors">{p.title}</h3>
-                <p className="text-xs text-slate-450 line-clamp-3 leading-relaxed">{p.promptText}</p>
-              </div>
-
-              <div className="mt-6 flex items-center justify-between border-t border-slate-850 pt-4 text-xs font-semibold">
-                <span className="text-slate-500">{p.wordTarget}</span>
-                <button
-                  onClick={() => startWriting(p)}
-                  className="flex items-center gap-1 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold transition-all shadow-md"
-                >
-                  <span>Start Practice</span>
-                  <ChevronRight className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-
-  const renderWorkspace = () => (
-    <div className="grid gap-6 lg:grid-cols-2">
-      {/* Left side: Prompt and word requirements */}
-      <div className="space-y-4 flex flex-col justify-between bg-slate-950/40 border border-slate-900 rounded-2xl p-6">
-        <div className="space-y-4">
-          <div className="flex justify-between items-center border-b border-slate-900 pb-3">
-            <span className="text-xs uppercase font-extrabold text-indigo-400 tracking-wider">
-              {selectedPrompt?.type === 'writing_task_1' ? 'Writing Task 1' : 'Writing Task 2'}
-            </span>
-            <button
-              onClick={() => {
-                if (confirm('Discard changes and return to selection?')) setStage('select');
-              }}
-              className="text-xs text-slate-500 hover:text-slate-300 font-semibold"
-            >
-              Cancel Practice
-            </button>
-          </div>
-          <h3 className="text-base font-bold text-white">{selectedPrompt?.title}</h3>
-          <p className="text-sm text-slate-300 leading-relaxed bg-slate-950/80 p-4 border border-slate-900/60 rounded-xl italic">
-            "{selectedPrompt?.promptText}"
-          </p>
-        </div>
-
-        <div className="pt-6 border-t border-slate-900 space-y-2 text-xs font-medium text-slate-500">
-          <div className="flex justify-between">
-            <span>Minimum Requirement:</span>
-            <span className="text-slate-350">{selectedPrompt?.wordTarget}</span>
-          </div>
-          <div className="flex justify-between">
-            <span>Target Prep Time:</span>
-            <span className="text-slate-350">{selectedPrompt?.estimatedMinutes} mins</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Right side: Editor */}
-      <div className="space-y-4 flex flex-col justify-between bg-slate-900/50 border border-slate-850 p-6 rounded-2xl">
-        <div className="space-y-4">
-          {/* Header controls */}
-          <div className="flex justify-between items-center border-b border-slate-850 pb-3">
-            <div className="flex items-center gap-2">
-              <Clock className="h-4.5 w-4.5 text-indigo-400 animate-pulse" />
-              <span className={`text-sm font-extrabold tracking-wider font-mono ${timeLeft < 180 ? 'text-rose-500' : 'text-slate-200'}`}>
-                {formatTime(timeLeft)}
-              </span>
-            </div>
-
-            <div className="flex items-center gap-1.5 text-xs text-slate-400 font-bold">
-              <span>Words:</span>
-              <span className={`font-mono text-sm ${wordCount < (selectedPrompt?.type === 'writing_task_1' ? 150 : 250) ? 'text-amber-500' : 'text-emerald-500'}`}>
-                {wordCount}
-              </span>
-            </div>
-          </div>
-
-          <textarea
-            value={submissionText}
-            onChange={(e) => setSubmissionText(e.target.value)}
-            placeholder="Write your essay response here. Use indentations for paragraphs..."
-            rows={14}
-            className="w-full rounded-xl bg-slate-950 border border-slate-850 p-4 text-sm text-slate-200 placeholder-slate-655 focus:outline-none focus:border-indigo-500 transition-all resize-none font-sans leading-relaxed"
-          />
-        </div>
-
-        <div className="flex items-center justify-between border-t border-slate-850 pt-4 mt-6">
-          <button
-            onClick={() => {
-              if (confirm('Clear essay workspace?')) setSubmissionText('');
-            }}
-            className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-300 font-bold transition-colors"
-          >
-            <RotateCcw className="h-4 w-4" />
-            <span>Reset Workspace</span>
-          </button>
-
-          <button
-            onClick={handleEvaluate}
-            className="flex items-center gap-1.5 px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold transition-all shadow-md shadow-indigo-500/10"
-          >
-            <span>Request AI Evaluation</span>
-            <Sparkles className="h-4 w-4" />
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderEvaluating = () => (
-    <div className="py-16 text-center space-y-4 max-w-sm mx-auto">
-      <Loader2 className="h-14 w-14 animate-spin text-indigo-500 mx-auto" />
-      <h3 className="text-lg font-bold text-white">AI IELTS Coach Evaluating Essay</h3>
-      <p className="text-slate-400 text-xs leading-relaxed">
-        Cross-analyzing spelling accuracy, lexical cohesion structures, paragraph organization, grammatical range, and Task Achievement metrics. This will take ~10 seconds.
-      </p>
-    </div>
-  );
-
-  const renderResult = () => (
-    <div className="space-y-6">
-      {/* Back to selection header */}
-      <div className="flex items-center gap-4">
-        <button
-          onClick={() => setStage('select')}
-          className="p-2 rounded-xl bg-slate-900 border border-slate-850 hover:border-slate-700 text-slate-450 hover:text-slate-200 transition-all"
-        >
-          <LayoutGrid className="h-5 w-5" />
-        </button>
-        <div>
-          <h2 className="text-xl font-bold text-white">Evaluation Report Card</h2>
-          <p className="text-xs text-slate-450">Review grammatical alignments, score breakdown, and custom model alternatives.</p>
-        </div>
-      </div>
-
-      {/* Main Grid */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Left Side: Score Board */}
-        <div className="lg:col-span-1 space-y-4">
-          <div className="bg-slate-950 border border-slate-900 rounded-2xl p-6 text-center space-y-4">
-            <div>
-              <span className="text-xs text-slate-500 font-extrabold uppercase tracking-wider">Overall Band Score</span>
-              <div className="text-6xl font-extrabold text-indigo-400 font-sans mt-2">{evaluation?.overallBand.toFixed(1)}</div>
-            </div>
-
-            <div className="border-t border-slate-900 pt-4 space-y-3 text-xs text-left">
-              {[
-                { label: 'Task Response', val: evaluation?.scores.taskAchievement },
-                { label: 'Coherence & Cohesion', val: evaluation?.scores.coherenceCohesion },
-                { label: 'Lexical Resource', val: evaluation?.scores.lexicalResource },
-                { label: 'Grammar Accuracy', val: evaluation?.scores.grammaticalRangeAccuracy },
-              ].map((s) => (
-                <div key={s.label} className="flex justify-between items-center font-medium">
-                  <span className="text-slate-400">{s.label}</span>
-                  <span className="text-slate-200 font-bold px-2 py-0.5 rounded-md bg-slate-900 border border-slate-850 font-mono">
-                    {s.val?.toFixed(1)}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="bg-slate-900/40 border border-slate-850 rounded-2xl p-6 space-y-3">
-            <h4 className="text-xs font-extrabold text-slate-400 uppercase tracking-wider">General Recommendations</h4>
-            <p className="text-xs text-slate-350 leading-relaxed">{evaluation?.generalComments}</p>
-          </div>
-        </div>
-
-        {/* Right Side: Corrections & Model Essay */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Section: Corrections */}
-          <div className="bg-slate-900/50 border border-slate-850 rounded-2xl p-6 space-y-4">
-            <h3 className="text-sm font-bold text-white flex items-center gap-2">
-              <BookOpenCheck className="h-5 w-5 text-amber-500" />
-              <span>Sentence Corrections & Suggestions</span>
-            </h3>
-
-            <div className="space-y-3">
-              {evaluation?.feedbackPoints.map((fp, idx) => (
-                <div key={idx} className="bg-slate-950 p-4 border border-slate-900 rounded-xl space-y-2 text-xs">
-                  <div className="flex justify-between items-center">
-                    <span className={`text-[9px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full border ${
-                      fp.type === 'grammar'
-                        ? 'text-rose-400 bg-rose-500/10 border-rose-500/20'
-                        : fp.type === 'vocabulary'
-                        ? 'text-sky-400 bg-sky-500/10 border-sky-500/20'
-                        : 'text-violet-400 bg-violet-500/10 border-violet-500/20'
-                    }`}>
-                      {fp.type}
-                    </span>
-                  </div>
-                  <div>
-                    <div className="text-rose-400 line-through">"{fp.originalText}"</div>
-                    <div className="text-emerald-400 font-semibold mt-1">"{fp.suggestedText}"</div>
-                  </div>
-                  <p className="text-slate-450 mt-1 leading-relaxed">{fp.explanation}</p>
-                </div>
-              ))}
-              {(!evaluation?.feedbackPoints || evaluation.feedbackPoints.length === 0) && (
-                <p className="text-slate-500 text-xs italic">No critical writing mistakes identified. Excellent structural accuracy!</p>
-              )}
-            </div>
-          </div>
-
-          {/* Section: High Band Model */}
-          <div className="bg-slate-900/50 border border-slate-850 rounded-2xl p-6 space-y-4">
-            <h3 className="text-sm font-bold text-white flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-emerald-400" />
-              <span>Band 8.5+ Model Essay Rewrite</span>
-            </h3>
-            <p className="text-xs text-slate-350 leading-relaxed bg-slate-950 p-5 rounded-xl border border-slate-900 italic font-sans whitespace-pre-line">
-              {evaluation?.improvedVersion}
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+    );
+  }
 
   return (
-    <div className="relative flex-1 bg-slate-950 text-slate-100 min-h-screen px-4 py-8 sm:px-6 lg:px-8">
-      {/* Background radial glow */}
-      <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-indigo-500/5 rounded-full blur-3xl" />
-      <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-sky-500/5 rounded-full blur-3xl" />
+    <div className="space-y-6 bg-slate-50 min-h-[500px]">
+      <AnimatePresence mode="wait">
+        
+        {/* Stage 1: Select Prompt */}
+        {stage === 'select' && (
+          <motion.div
+            key="select"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            className="space-y-6"
+          >
+            <div className="grid gap-4 sm:grid-cols-2">
+              {prompts.map((p) => (
+                <div
+                  key={p._id}
+                  className="bg-white border border-slate-200 p-6 rounded-2xl flex flex-col justify-between space-y-4 shadow-sm hover:border-slate-350 hover:shadow-md transition-all"
+                >
+                  <div className="space-y-2">
+                    <span className={`text-[9px] uppercase font-extrabold tracking-widest px-2.5 py-0.5 rounded-full border ${
+                      p.taskType === 'writing_task_1'
+                        ? 'text-emerald-700 bg-emerald-50 border-emerald-100'
+                        : 'text-indigo-700 bg-indigo-50 border-indigo-100'
+                    }`}>
+                      {p.taskType === 'writing_task_1' ? 'Task 1: Report' : 'Task 2: Essay'}
+                    </span>
+                    <h3 className="text-sm font-black text-slate-900">{p.title}</h3>
+                    <p className="text-xs text-slate-500 leading-relaxed line-clamp-3">{p.question}</p>
+                  </div>
+                  <button
+                    onClick={() => handleStartTask(p)}
+                    className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-all shadow-md shadow-indigo-650/10"
+                  >
+                    <span>Practice Essay</span>
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        )}
 
-      <div className="max-w-6xl mx-auto z-10 relative">
-        <AnimatePresence mode="wait">
-          {stage === 'select' && renderSelection()}
-          {stage === 'write' && renderWorkspace()}
-          {stage === 'evaluating' && renderEvaluating()}
-          {stage === 'result' && renderResult()}
-        </AnimatePresence>
-      </div>
+        {/* Stage 2: Practice Writing Workspace */}
+        {stage === 'write' && selectedPrompt && (
+          <motion.div
+            key="write"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="grid gap-6 md:grid-cols-3"
+          >
+            {/* Column 1: Prompt details & Timer */}
+            <div className="md:col-span-1 space-y-6">
+              <div className="bg-white border border-slate-200 p-6 rounded-2xl space-y-4 shadow-sm">
+                <button
+                  onClick={() => setStage('select')}
+                  className="flex items-center gap-1 text-[11px] text-slate-400 hover:text-slate-900 font-bold uppercase tracking-wider"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  <span>Exit Workspace</span>
+                </button>
+
+                <div>
+                  <span className="text-[9px] uppercase font-extrabold px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-100">
+                    {selectedPrompt.taskType === 'writing_task_1' ? 'Task 1 Guidelines' : 'Task 2 Essay'}
+                  </span>
+                  <h3 className="text-base font-black text-slate-900 mt-2">{selectedPrompt.title}</h3>
+                  <p className="text-xs text-slate-655 leading-relaxed mt-2 italic font-semibold">
+                    {selectedPrompt.question}
+                  </p>
+                </div>
+
+                <div className="border-t border-slate-100 pt-4 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-4.5 w-4.5 text-indigo-600 animate-pulse" />
+                    <span className="font-mono text-base font-extrabold text-slate-800">{formatTime(timeLeft)}</span>
+                  </div>
+                  <span className="text-xs text-slate-400 font-medium">Time Remaining</span>
+                </div>
+              </div>
+
+              {/* Dynamic AI Blueprint Idea/Template */}
+              <div className="bg-emerald-50 border border-emerald-100 p-5 rounded-2xl space-y-3 shadow-sm text-emerald-950">
+                <h4 className="text-[10px] font-extrabold uppercase tracking-widest text-emerald-700 flex items-center gap-1.5">
+                  <Lightbulb className="h-4.5 w-4.5 text-emerald-600" />
+                  <span>IELTS Bangladesh AI Outline Suggestion</span>
+                </h4>
+                
+                {selectedPrompt.taskType === 'writing_task_1' ? (
+                  <p className="text-xs leading-relaxed font-semibold">
+                    Task 1 Recommendation: Start with an introduction paraphrasing the chart. Write an Overview paragraph identifying major trends (highs, lows, fluctuations). Support using exact figures in Body 1 and Body 2. Avoid listing your opinion!
+                  </p>
+                ) : (
+                  <p className="text-xs leading-relaxed font-semibold">
+                    Task 2 Recommendation: Write 4 paragraphs. 1. Introduction with Thesis Statement. 2. Supporting Body (Focus on economic advantages, efficiency, connectivity). 3. Contrasting Body (Drawbacks like digital gap, distractions). 4. Conclusion. Use transition vocabulary like "On the one hand", "Consequently", "In summation".
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Column 2 & 3: Editor */}
+            <div className="md:col-span-2 space-y-4">
+              <div className="bg-white border border-slate-200 p-6 rounded-2xl space-y-4 shadow-sm">
+                <div className="flex justify-between items-center text-xs text-slate-400 font-semibold border-b border-slate-100 pb-2">
+                  <span>Writing Sandbox Area</span>
+                  <span className="font-mono">Words: {getWordCount(submissionText)} / {selectedPrompt.taskType === 'writing_task_1' ? '150' : '250'} minimum</span>
+                </div>
+
+                <textarea
+                  value={submissionText}
+                  onChange={(e) => setSubmissionText(e.target.value)}
+                  placeholder="Draft your academic response here..."
+                  rows={14}
+                  className="w-full bg-slate-50 border border-slate-200 p-4 rounded-xl text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-500 font-semibold leading-relaxed"
+                />
+
+                <div className="flex justify-end pt-2">
+                  <button
+                    onClick={handleFinishWriting}
+                    disabled={submissionText.trim().length < 50}
+                    className="flex items-center gap-1.5 px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all shadow-md shadow-emerald-650/10 disabled:opacity-50"
+                  >
+                    <span>Submit Essay for AI Check</span>
+                    <CheckCircle className="h-4.5 w-4.5" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Stage 3: Evaluating Screen */}
+        {stage === 'evaluating' && (
+          <motion.div
+            key="evaluating"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="py-16 text-center space-y-4"
+          >
+            <Loader2 className="h-10 w-10 animate-spin text-indigo-650 mx-auto" />
+            <h3 className="text-base font-bold text-slate-900">AI Criteria Analyzer Running</h3>
+            <p className="text-slate-550 text-xs max-w-xs mx-auto">
+              Graging Task Achievement, Lexical Variety, Coherence Metrics, and Syntactic Errors...
+            </p>
+          </motion.div>
+        )}
+
+        {/* Stage 4: Result Scorecard Screen */}
+        {stage === 'result' && evaluation && (
+          <motion.div
+            key="result"
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="space-y-6"
+          >
+            <div className="flex justify-between items-center bg-white border border-slate-200 p-6 rounded-2xl shadow-sm">
+              <div className="flex items-center gap-3">
+                <div className="h-12 w-12 rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-100 flex items-center justify-center">
+                  <Award className="h-7 w-7" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-slate-900">Essay Score Assessment</h3>
+                  <p className="text-xs text-slate-450 uppercase tracking-widest font-extrabold mt-0.5">Evaluation Outcome</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setStage('select')}
+                className="flex items-center gap-1 px-4 py-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-550 hover:text-slate-900 text-xs font-bold transition-all"
+              >
+                <RefreshCw className="h-4.5 w-4.5" />
+                <span>Practice Again</span>
+              </button>
+            </div>
+
+            {/* Score Breakdowns */}
+            <div className="grid gap-6 md:grid-cols-3">
+              {/* Circular Overall Band */}
+              <div className="md:col-span-1 bg-white border border-slate-200 p-6 rounded-2xl flex flex-col items-center justify-between text-center shadow-sm">
+                <h4 className="text-xs font-extrabold text-slate-500 uppercase tracking-widest">Overall Band Score</h4>
+                <div className="relative flex items-center justify-center h-28 w-28 my-4">
+                  <svg className="absolute w-full h-full transform -rotate-90">
+                    <circle cx="56" cy="56" r="48" className="stroke-slate-100 fill-transparent" strokeWidth="8" />
+                    <circle
+                      cx="56"
+                      cy="56"
+                      r="48"
+                      className="stroke-indigo-650 fill-transparent"
+                      strokeWidth="8"
+                      strokeDasharray={2 * Math.PI * 48}
+                      strokeDashoffset={2 * Math.PI * 48 * (1 - evaluation.overallBand / 9.0)}
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                  <span className="text-2xl font-black text-slate-900">{evaluation.overallBand.toFixed(1)}</span>
+                </div>
+                <span className="text-xs text-slate-450 uppercase font-bold tracking-wider">Estimated Level</span>
+              </div>
+
+              {/* Progress bars criteria */}
+              <div className="md:col-span-2 bg-white border border-slate-200 p-6 rounded-2xl space-y-4 shadow-sm">
+                <h4 className="text-xs font-extrabold text-slate-500 uppercase tracking-widest">IELTS Criteria Scores</h4>
+                
+                <div className="space-y-3.5 text-xs">
+                  {[
+                    { label: 'Task Achievement (TA)', val: evaluation.criteriaScores.taskAchievement },
+                    { label: 'Coherence & Cohesion (CC)', val: evaluation.criteriaScores.coherenceCohesion },
+                    { label: 'Lexical Resource (LR)', val: evaluation.criteriaScores.lexicalResource },
+                    { label: 'Grammatical Range & Accuracy (GRA)', val: evaluation.criteriaScores.grammaticalRangeAccuracy },
+                  ].map((crit, idx) => (
+                    <div key={idx} className="space-y-1.5">
+                      <div className="flex justify-between font-bold text-slate-800">
+                        <span>{crit.label}</span>
+                        <span>{crit.val.toFixed(1)} / 9.0</span>
+                      </div>
+                      <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                        <div className="h-full bg-indigo-600 rounded-full" style={{ width: `${(crit.val / 9) * 100}%` }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* General Comments */}
+            <div className="bg-white border border-slate-200 p-6 rounded-2xl space-y-3.5 shadow-sm text-xs leading-relaxed">
+              <h4 className="font-extrabold text-slate-800 uppercase tracking-widest text-[10px]">AI Coach General Comments</h4>
+              <p className="text-slate-655 font-semibold leading-relaxed">{evaluation.generalComments}</p>
+            </div>
+
+            {/* Feedback Points Diffs */}
+            <div className="bg-white border border-slate-200 p-6 rounded-2xl space-y-4 shadow-sm">
+              <h4 className="text-xs font-extrabold text-slate-500 uppercase tracking-widest">Sentence-Level Corrections</h4>
+              
+              <div className="space-y-3">
+                {evaluation.feedbackPoints.map((pt, idx) => (
+                  <div key={idx} className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2 text-xs">
+                    <div className="flex items-center justify-between">
+                      <span className={`text-[9px] font-extrabold uppercase px-2 py-0.5 border rounded-full ${
+                        pt.type === 'grammar'
+                          ? 'text-rose-700 bg-rose-50 border-rose-100'
+                          : pt.type === 'vocabulary'
+                          ? 'text-amber-700 bg-amber-50 border-amber-100'
+                          : 'text-indigo-700 bg-indigo-50 border-indigo-100'
+                      }`}>
+                        {pt.type}
+                      </span>
+                    </div>
+
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <div className="p-2 rounded bg-rose-100/50 border border-rose-200/50 text-rose-900 line-through font-medium">
+                        {pt.originalText}
+                      </div>
+                      <div className="p-2 rounded bg-emerald-100/50 border border-emerald-200/50 text-emerald-900 font-semibold">
+                        {pt.suggestedText}
+                      </div>
+                    </div>
+
+                    <p className="text-slate-550 leading-relaxed font-semibold pl-1">
+                      💡 {pt.explanation}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Band 9 Improved Version */}
+            <div className="bg-white border border-slate-200 p-6 rounded-2xl space-y-3 shadow-sm text-xs">
+              <h4 className="font-extrabold text-indigo-700 uppercase tracking-widest text-[10px] flex items-center gap-1.5">
+                <TrendingUp className="h-4.5 w-4.5" />
+                <span>Model Band 9.0 Translation Rewrite</span>
+              </h4>
+              <div className="p-4 bg-indigo-50/50 border border-indigo-100/80 text-indigo-950 font-semibold leading-relaxed rounded-xl whitespace-pre-line">
+                {evaluation.improvedVersion}
+              </div>
+            </div>
+
+          </motion.div>
+        )}
+
+      </AnimatePresence>
     </div>
   );
 }

@@ -18,12 +18,11 @@ export default function OnboardingPage() {
 }
 
 function OnboardingForm() {
-  const { user, refreshUser } = useAuth();
+  const { refreshUser } = useAuth();
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
 
-  // Form states
   const [targetBand, setTargetBand] = useState<number>(7.0);
   const [examDate, setExamDate] = useState<string>('');
   const [goal, setGoal] = useState<string>('');
@@ -83,11 +82,11 @@ function OnboardingForm() {
             className="space-y-6"
           >
             <div className="text-center space-y-2">
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-400">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-650">
                 <Target className="h-6 w-6" />
               </div>
-              <h3 className="text-xl font-bold text-white">What is your target band?</h3>
-              <p className="text-sm text-slate-400">Most top universities require 6.5 - 7.5 overall.</p>
+              <h3 className="text-xl font-black text-slate-900">What is your target band?</h3>
+              <p className="text-sm text-slate-500">Most top universities require 6.5 - 7.5 overall.</p>
             </div>
             
             <div className="grid grid-cols-3 gap-3">
@@ -98,8 +97,8 @@ function OnboardingForm() {
                   onClick={() => setTargetBand(score)}
                   className={`py-4 rounded-xl border text-sm font-bold transition-all ${
                     targetBand === score
-                      ? 'bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-500/20'
-                      : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-200'
+                      ? 'bg-indigo-600 border-indigo-500 text-white shadow-md shadow-indigo-600/10'
+                      : 'bg-slate-50 border-slate-200 text-slate-500 hover:border-slate-350 hover:text-slate-900'
                   }`}
                 >
                   {score}
@@ -119,11 +118,11 @@ function OnboardingForm() {
             className="space-y-6"
           >
             <div className="text-center space-y-2">
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-sky-500/10 text-sky-400">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-sky-500/10 text-sky-655">
                 <Calendar className="h-6 w-6" />
               </div>
-              <h3 className="text-xl font-bold text-white">When is your exam date?</h3>
-              <p className="text-sm text-slate-400">If tentative, select an approximate target date.</p>
+              <h3 className="text-xl font-black text-slate-900">When is your exam date?</h3>
+              <p className="text-sm text-slate-500">If tentative, select an approximate target date.</p>
             </div>
 
             <div className="space-y-4">
@@ -133,7 +132,7 @@ function OnboardingForm() {
                 value={examDate}
                 min={new Date().toISOString().split('T')[0]}
                 onChange={(e) => setExamDate(e.target.value)}
-                className="w-full rounded-xl bg-slate-950 border border-slate-800 px-4 py-3 text-sm text-slate-200 focus:outline-none focus:border-indigo-500 transition-all [color-scheme:dark]"
+                className="w-full rounded-xl bg-slate-50 border border-slate-200 px-4 py-3 text-sm text-slate-900 focus:outline-none focus:border-indigo-500 transition-all font-semibold"
               />
             </div>
           </motion.div>
@@ -149,11 +148,11 @@ function OnboardingForm() {
             className="space-y-6"
           >
             <div className="text-center space-y-2">
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-amber-500/10 text-amber-400">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-amber-500/10 text-amber-655">
                 <Trophy className="h-6 w-6" />
               </div>
-              <h3 className="text-xl font-bold text-white">What is your primary goal?</h3>
-              <p className="text-sm text-slate-400">This helps align recommendations.</p>
+              <h3 className="text-xl font-black text-slate-900">What is your primary goal?</h3>
+              <p className="text-sm text-slate-500">This helps align recommendations.</p>
             </div>
 
             <div className="space-y-3">
@@ -168,18 +167,18 @@ function OnboardingForm() {
                   onClick={() => setGoal(g.label)}
                   className={`w-full flex items-start gap-4 p-4 rounded-xl border text-left transition-all ${
                     goal === g.label
-                      ? 'bg-slate-900 border-indigo-500 text-slate-100 shadow-md'
-                      : 'bg-slate-950 border-slate-900 text-slate-400 hover:border-slate-800 hover:text-slate-200'
+                      ? 'bg-slate-50 border-indigo-500 text-slate-900 shadow-sm'
+                      : 'bg-white border-slate-200 text-slate-500 hover:border-slate-350 hover:text-slate-900'
                   }`}
                 >
                   <div className={`mt-0.5 rounded-full h-4 w-4 border-2 flex items-center justify-center ${
-                    goal === g.label ? 'border-indigo-500 bg-indigo-500' : 'border-slate-700 bg-transparent'
+                    goal === g.label ? 'border-indigo-500 bg-indigo-500' : 'border-slate-300 bg-transparent'
                   }`}>
                     {goal === g.label && <div className="h-1.5 w-1.5 bg-white rounded-full" />}
                   </div>
                   <div>
-                    <h4 className="font-semibold text-sm text-white">{g.label}</h4>
-                    <p className="text-xs text-slate-500 mt-1">{g.desc}</p>
+                    <h4 className="font-bold text-sm text-slate-900">{g.label}</h4>
+                    <p className="text-xs text-slate-450 mt-1">{g.desc}</p>
                   </div>
                 </button>
               ))}
@@ -197,11 +196,11 @@ function OnboardingForm() {
             className="space-y-6"
           >
             <div className="text-center space-y-2">
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-655">
                 <Clock className="h-6 w-6" />
               </div>
-              <h3 className="text-xl font-bold text-white">Daily study commitment?</h3>
-              <p className="text-sm text-slate-400">How much time can you practice per day?</p>
+              <h3 className="text-xl font-black text-slate-900">Daily study commitment?</h3>
+              <p className="text-sm text-slate-500">How much time can you practice per day?</p>
             </div>
 
             <div className="space-y-3">
@@ -217,18 +216,18 @@ function OnboardingForm() {
                   onClick={() => setStudyTime(t.time)}
                   className={`w-full flex items-start gap-4 p-4 rounded-xl border text-left transition-all ${
                     studyTime === t.time
-                      ? 'bg-slate-900 border-indigo-500 text-slate-100 shadow-md'
-                      : 'bg-slate-950 border-slate-900 text-slate-400 hover:border-slate-800 hover:text-slate-200'
+                      ? 'bg-slate-50 border-indigo-500 text-slate-900 shadow-sm'
+                      : 'bg-white border-slate-200 text-slate-500 hover:border-slate-350 hover:text-slate-900'
                   }`}
                 >
                   <div className={`mt-0.5 rounded-full h-4 w-4 border-2 flex items-center justify-center ${
-                    studyTime === t.time ? 'border-indigo-500 bg-indigo-500' : 'border-slate-700 bg-transparent'
+                    studyTime === t.time ? 'border-indigo-500 bg-indigo-500' : 'border-slate-300 bg-transparent'
                   }`}>
                     {studyTime === t.time && <div className="h-1.5 w-1.5 bg-white rounded-full" />}
                   </div>
                   <div>
-                    <h4 className="font-semibold text-sm text-white">{t.label}</h4>
-                    <p className="text-xs text-slate-500 mt-1">{t.desc}</p>
+                    <h4 className="font-bold text-sm text-slate-900">{t.label}</h4>
+                    <p className="text-xs text-slate-455 mt-1">{t.desc}</p>
                   </div>
                 </button>
               ))}
@@ -239,21 +238,21 @@ function OnboardingForm() {
   };
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-slate-950 px-4 py-12 sm:px-6 lg:px-8">
-      {/* Background blur */}
-      <div className="absolute top-0 left-0 w-96 h-96 bg-indigo-500/5 rounded-full blur-3xl filter" />
-      <div className="absolute bottom-0 right-0 w-96 h-96 bg-sky-500/5 rounded-full blur-3xl filter" />
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-slate-50 px-4 py-12 sm:px-6 lg:px-8">
+      {/* Background gradients */}
+      <div className="absolute top-0 left-0 w-96 h-96 bg-indigo-500/5 rounded-full blur-3xl" />
+      <div className="absolute bottom-0 right-0 w-96 h-96 bg-sky-500/5 rounded-full blur-3xl" />
 
       <div className="w-full max-w-lg z-10 space-y-8">
         {/* Progress header */}
         <div className="space-y-4">
-          <div className="flex items-center justify-between text-xs text-slate-400 font-semibold tracking-wider uppercase">
+          <div className="flex items-center justify-between text-xs text-slate-450 font-bold tracking-wider uppercase">
             <span>Setup Onboarding</span>
             <span>Step {step} of {totalSteps}</span>
           </div>
-          <div className="h-1 w-full bg-slate-900 rounded-full overflow-hidden">
+          <div className="h-1 w-full bg-slate-200 rounded-full overflow-hidden">
             <motion.div
-              className="h-full bg-indigo-500"
+              className="h-full bg-indigo-650"
               initial={{ width: '0%' }}
               animate={{ width: `${(step / totalSteps) * 100}%` }}
               transition={{ duration: 0.3 }}
@@ -262,18 +261,18 @@ function OnboardingForm() {
         </div>
 
         {/* Card */}
-        <div className="bg-slate-900/60 backdrop-blur-xl border border-slate-800/80 rounded-2xl p-8 shadow-2xl">
+        <div className="bg-white border border-slate-200 rounded-2xl p-8 shadow-xl">
           <AnimatePresence mode="wait">
             {renderStepContent()}
           </AnimatePresence>
 
           {/* Action buttons */}
-          <div className="flex items-center justify-between mt-8 pt-6 border-t border-slate-800/60">
+          <div className="flex items-center justify-between mt-8 pt-6 border-t border-slate-100">
             <button
               onClick={prevStep}
               disabled={step === 1}
               className={`flex items-center gap-1.5 text-sm font-semibold transition-all ${
-                step === 1 ? 'text-slate-600 cursor-not-allowed' : 'text-slate-400 hover:text-slate-200'
+                step === 1 ? 'text-slate-300 cursor-not-allowed' : 'text-slate-500 hover:text-slate-900'
               }`}
             >
               <ArrowLeft className="h-4 w-4" />

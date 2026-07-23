@@ -53,10 +53,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       toast.success('Successfully logged in!');
       
       // Redirect based on onboarding state
-      if (!backendUser.onboardingCompleted) {
-        router.push('/onboarding');
-      } else if (!backendUser.assessmentCompleted) {
+      if (!backendUser.assessmentCompleted) {
         router.push('/assessment');
+      } else if (!backendUser.onboardingCompleted) {
+        router.push('/onboarding');
       } else {
         router.push('/dashboard');
       }

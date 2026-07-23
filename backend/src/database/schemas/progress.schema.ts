@@ -29,6 +29,12 @@ export class Progress {
   @Prop({ required: true, enum: ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'] })
   currentCefrEstimate: string;
 
+  @Prop({ type: [String], default: [] })
+  weakSkills: string[];
+
+  @Prop({ type: [String], default: [] })
+  strongSkills: string[];
+
   @Prop({ type: [HistoricalScore], default: [] })
   scoreHistory: HistoricalScore[];
 

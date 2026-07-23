@@ -5,6 +5,7 @@ import { UserDocument } from '../database/schemas/user.schema';
 import { OnboardingDto } from './dtos/onboarding.dto';
 import { PlacementTestDto } from './dtos/placement-test.dto';
 import { AIService } from '../ai/ai.service';
+import { StudyPlanService } from '../study-plan/study-plan.service';
 import { Types } from 'mongoose';
 
 interface PlacementAIResponse {
@@ -21,6 +22,7 @@ export class UsersService {
     private readonly userRepository: UserRepository,
     private readonly progressRepository: ProgressRepository,
     private readonly aiService: AIService,
+    private readonly studyPlanService: StudyPlanService,
   ) {}
 
   async getUserMe(userId: string): Promise<UserDocument> {
@@ -31,7 +33,7 @@ export class UsersService {
     return user;
   }
 
-  async completeOnboarding(userId: string, dto: OnboardingDto): Promise<UserDocument> {
+  async completeOnboarding(userId: string, dto: OnboardingDto): Promise<any> {
     const user = await this.userRepository.findById(userId);
     if (!user) {
       throw new NotFoundException('User not found');
@@ -39,9 +41,29 @@ export class UsersService {
 
     user.targetBand = dto.targetBand;
     user.examDate = new Date(dto.examDate);
+    user.studyGoal = dto.goal;
+    user.dailyStudyTime = dto.studyTimePerDay;
     user.onboardingCompleted = true;
     
-    return user.save();
+    await user.save();
+
+    // Trigger personalized study plan generation
+    const studyPlan = await this.studyPlanService.generateStudyPlan(userId);
+    const progress = await this.progressRepository.findOne({ userId: new Types.ObjectId(userId) });
+
+    return {
+      user: {
+        id: user._id,
+        email: user.email,
+        fullName: user.fullName,
+        targetBand: user.targetBand,
+        examDate: user.examDate,
+        onboardingCompleted: user.onboardingCompleted,
+        assessmentCompleted: user.assessmentCompleted,
+      },
+      progress,
+      studyPlan,
+    };
   }
 
   async completePlacementTest(userId: string, dto: PlacementTestDto): Promise<any> {
@@ -95,6 +117,8 @@ export class UsersService {
         userId: new Types.ObjectId(userId),
         currentBandEstimate: evaluation.estimatedBand,
         currentCefrEstimate: evaluation.cefrLevel,
+        weakSkills: evaluation.weaknesses || [],
+        strongSkills: evaluation.strengths || [],
         scoreHistory: [scoreHistoryItem],
         completedTasks: [],
         masteredVocabulary: [],
@@ -102,6 +126,8 @@ export class UsersService {
     } else {
       progress.currentBandEstimate = evaluation.estimatedBand;
       progress.currentCefrEstimate = evaluation.cefrLevel;
+      progress.weakSkills = evaluation.weaknesses || [];
+      progress.strongSkills = evaluation.strengths || [];
       progress.scoreHistory.push(scoreHistoryItem);
       await progress.save();
     }

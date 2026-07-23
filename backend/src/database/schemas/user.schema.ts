@@ -20,6 +20,12 @@ export class User {
   @Prop({ default: null })
   examDate: Date;
 
+  @Prop({ default: null })
+  studyGoal: string;
+
+  @Prop({ default: 0 })
+  dailyStudyTime: number;
+
   @Prop({ default: false })
   onboardingCompleted: boolean;
 

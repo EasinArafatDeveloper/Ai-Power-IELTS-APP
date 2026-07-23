@@ -18,15 +18,26 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
       return;
     }
 
-    // Skip redirect loops
+    // Redirect completed steps to avoid repeating them
+    if (pathname === '/assessment' && user.assessmentCompleted) {
+      router.replace(user.onboardingCompleted ? '/dashboard' : '/onboarding');
+      return;
+    }
+
+    if (pathname === '/onboarding' && user.onboardingCompleted) {
+      router.replace('/dashboard');
+      return;
+    }
+
+    // Skip redirect loops for remaining active steps
     if (pathname === '/onboarding' || pathname === '/assessment') {
       return;
     }
 
-    if (!user.onboardingCompleted) {
-      router.replace('/onboarding');
-    } else if (!user.assessmentCompleted) {
+    if (!user.assessmentCompleted) {
       router.replace('/assessment');
+    } else if (!user.onboardingCompleted) {
+      router.replace('/onboarding');
     }
   }, [user, loading, router, pathname]);
 

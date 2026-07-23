@@ -3,6 +3,7 @@ import { StudyPlanRepository } from '../database/repositories/study-plan.reposit
 import { UserRepository } from '../database/repositories/user.repository';
 import { ProgressRepository } from '../database/repositories/progress.repository';
 import { StudyPlan, StudyTask } from '../database/schemas/study-plan.schema';
+import { AIService } from '../ai/ai.service';
 import { Types } from 'mongoose';
 
 @Injectable()
@@ -11,6 +12,7 @@ export class StudyPlanService {
     private readonly studyPlanRepository: StudyPlanRepository,
     private readonly userRepository: UserRepository,
     private readonly progressRepository: ProgressRepository,
+    private readonly aiService: AIService,
   ) {}
 
   async getDailyTasks(userId: string): Promise<{ dayNumber: number; date: Date; tasks: StudyTask[] }> {
@@ -122,12 +124,23 @@ export class StudyPlanService {
     return foundTask;
   }
 
-  private async generateStudyPlan(userId: string): Promise<any> {
+  async generateStudyPlan(userId: string): Promise<any> {
     const userObjectId = new Types.ObjectId(userId);
     const user = await this.userRepository.findById(userId);
     if (!user) {
       throw new NotFoundException('User not found');
     }
+
+    // Delete existing study plan if any to avoid duplicates
+    await this.studyPlanRepository.delete({ userId: userObjectId });
+
+    // Fetch diagnosed weaknesses from user progress
+    const progress = await this.progressRepository.findOne({ userId: userObjectId });
+    const baselineScore = progress?.currentBandEstimate || 6.0;
+    const targetScore = user.targetBand || 7.5;
+    const isWeakWriting = progress?.weakSkills?.some(s => /writing|cohes|essay|task 2/i.test(s)) || false;
+    const isWeakGrammar = progress?.weakSkills?.some(s => /grammar|syntax|sentence/i.test(s)) || false;
+    const isWeakVocab = progress?.weakSkills?.some(s => /vocab|lexic/i.test(s)) || false;
 
     const startDate = new Date();
     startDate.setHours(0, 0, 0, 0);
@@ -140,46 +153,134 @@ export class StudyPlanService {
     const planDays = Math.min(30, daysToExam);
     const dailyPlans = [];
 
-    const categories = ['vocabulary', 'writing', 'reading', 'listening', 'speaking'] as const;
+    // Daily commit minutes (from 15 to 240, default 60)
+    const dailyCommitMinutes = user.dailyStudyTime || 60;
+
+    // Call AI to generate highly customized daily tasks for the first 7 days
+    let aiDailyTasks: any[] = [];
+    try {
+      const prompt = `
+        You are an expert AI IELTS Coach. A student needs a highly personalized study plan.
+        Student Details:
+        - Baseline Band: ${baselineScore} (${progress?.currentCefrEstimate || 'B2'})
+        - Target Band: ${targetScore}
+        - Strengths: ${JSON.stringify(progress?.strongSkills || [])}
+        - Weaknesses: ${JSON.stringify(progress?.weakSkills || [])}
+        - Prep Goal: "${user.studyGoal || 'General IELTS Improvement'}"
+        - Daily Commited Time: ${dailyCommitMinutes} minutes
+        
+        Generate exactly 3 study tasks for each day from Day 1 to Day 7 (total 21 tasks).
+        Ensure the tasks address their weaknesses: ${JSON.stringify(progress?.weakSkills || [])}.
+        Each task must have an estimated duration in minutes. The sum of task durations on each day must equal ${dailyCommitMinutes} minutes.
+        
+        Return ONLY a JSON response in the following format:
+        {
+          "days": [
+            {
+              "dayNumber": number (1 to 7),
+              "tasks": [
+                {
+                  "id": "string (unique task ID, e.g. task-vocab-d1)",
+                  "title": "string (highly specific description of the task, e.g. 'Master 10 academic words about climate change')",
+                  "category": "string (enum: 'reading', 'listening', 'writing', 'speaking', 'vocabulary')",
+                  "difficulty": "string (enum: 'easy', 'medium', 'hard')",
+                  "estimatedMinutes": number
+                }
+              ]
+            }
+          ]
+        }
+      `;
+
+      const systemInstruction = 'You are a professional IELTS coach. Output raw JSON object matching the requested schema only. Do not wrap in markdown or any text.';
+      const aiResponse = await this.aiService.generateJson<{ days: any[] }>(prompt, systemInstruction);
+      if (aiResponse && aiResponse.days && Array.isArray(aiResponse.days)) {
+        aiDailyTasks = aiResponse.days;
+      }
+    } catch (err) {
+      console.warn('AI study plan generation failed, falling back to rule-based: ', err.message);
+    }
 
     for (let day = 1; day <= planDays; day++) {
       const date = new Date(startDate);
       date.setDate(startDate.getDate() + (day - 1));
 
-      // Day specific prompts / assignments
-      const tasks: StudyTask[] = [
-        {
+      let tasks: StudyTask[] = [];
+
+      // Check if we have AI-generated tasks for this day
+      const aiDayData = aiDailyTasks.find(d => d.dayNumber === day);
+      if (aiDayData && aiDayData.tasks && aiDayData.tasks.length > 0) {
+        tasks = aiDayData.tasks.map((t: any) => ({
+          id: t.id || `task-ai-d${day}-${Math.random().toString(36).substr(2, 4)}`,
+          title: t.title,
+          category: t.category || 'vocabulary',
+          difficulty: t.difficulty || 'medium',
+          status: 'pending',
+          estimatedMinutes: t.estimatedMinutes || 20,
+          metadata: t.metadata || {},
+        }));
+      } else {
+        // Fallback: Programmatic custom tasks
+        // Task 1: Vocabulary (Adjusted by weak skills)
+        let vocabDuration = Math.round(dailyCommitMinutes * 0.25);
+        if (isWeakVocab) vocabDuration = Math.round(dailyCommitMinutes * 0.35);
+        vocabDuration = Math.max(10, Math.min(vocabDuration, 45));
+
+        tasks.push({
           id: `task-vocab-d${day}`,
-          title: `Master ${day * 5} Academic IELTS Vocabulary Words`,
+          title: isWeakVocab
+            ? `Intensive Vocab: Focus on High-Yield Academic Collocations (Day ${day})`
+            : `Expand IELTS Deck: 10 New Core Academic Vocabulary Words (Day ${day})`,
           category: 'vocabulary',
           difficulty: day < 10 ? 'easy' : day < 20 ? 'medium' : 'hard',
           status: 'pending',
-          estimatedMinutes: 15,
-          metadata: { wordCount: 5, listId: `deck-${day}` },
-        },
-        {
+          estimatedMinutes: vocabDuration,
+          metadata: { wordCount: isWeakVocab ? 15 : 10, deckId: `deck-day-${day}` },
+        });
+
+        // Task 2: Writing / Grammar focus
+        let writingDuration = Math.round(dailyCommitMinutes * 0.45);
+        if (isWeakWriting || isWeakGrammar) writingDuration = Math.round(dailyCommitMinutes * 0.55);
+        writingDuration = Math.max(15, Math.min(writingDuration, 90));
+
+        let writingTitle = '';
+        if (isWeakGrammar && day % 2 === 1) {
+          writingTitle = `Grammar Drill: Constructing Complex & Compound Sentences for Band 7+ (Day ${day})`;
+        } else if (isWeakWriting) {
+          writingTitle = day % 2 === 0
+            ? `Writing Coach: Academic Essay Intro & Body Outline (Day ${day})`
+            : `Cohesion Challenge: Linking Devices and Essay Structuring (Day ${day})`;
+        } else {
+          writingTitle = day % 2 === 0
+            ? `Writing Coach: Academic Writing Task 1 Data Report (Day ${day})`
+            : `Writing Coach: Argumentative Essay Outline (Day ${day})`;
+        }
+
+        tasks.push({
           id: `task-writing-d${day}`,
-          title: day % 2 === 0 
-            ? 'Practice IELTS Writing Task 1: Academic Chart' 
-            : 'Practice IELTS Writing Task 2: Academic Essay Outline',
+          title: writingTitle,
           category: 'writing',
-          difficulty: day < 15 ? 'easy' : 'medium',
+          difficulty: day < 12 ? 'easy' : day < 22 ? 'medium' : 'hard',
           status: 'pending',
-          estimatedMinutes: 40,
-          metadata: { taskType: day % 2 === 0 ? 'writing_task_1' : 'writing_task_2' },
-        },
-        {
+          estimatedMinutes: writingDuration,
+          metadata: { focus: isWeakGrammar ? 'grammar_accuracy' : 'coherence_cohesion' },
+        });
+
+        // Task 3: Core skills practice (Reading/Listening)
+        const practiceDuration = Math.max(15, dailyCommitMinutes - vocabDuration - writingDuration);
+        
+        tasks.push({
           id: `task-practice-d${day}`,
           title: day % 2 === 0
-            ? 'Complete IELTS Section 1 Listening Drills'
-            : 'Complete Reading Passage Comprehension Drill',
-          category: day % 2 === 0 ? 'listening' : 'reading',
-          difficulty: 'medium',
+            ? `Reading Passage: Academic Skimming & True/False/Not Given Drills (Day ${day})`
+            : `Listening Section: Keyword Matching & Audio Comprehension Drill (Day ${day})`,
+          category: day % 2 === 0 ? 'reading' : 'listening',
+          difficulty: baselineScore >= 7.0 ? 'hard' : 'medium',
           status: 'pending',
-          estimatedMinutes: 30,
+          estimatedMinutes: practiceDuration,
           metadata: {},
-        }
-      ];
+        });
+      }
 
       dailyPlans.push({
         dayNumber: day,

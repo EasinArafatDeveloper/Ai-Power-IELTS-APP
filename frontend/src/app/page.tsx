@@ -90,14 +90,14 @@ export default function LandingPage() {
 
           <div className="flex items-center gap-4">
             <Link
-              href="/login"
+              href="/login?mode=login"
               className="text-xs font-bold text-[#434655] hover:text-[#131b2e] transition-colors uppercase tracking-wider font-sans"
             >
               Sign In
             </Link>
             
             {/* Pill Success button style */}
-            <Link href="/login" className="btn-pill-primary px-5 py-2.5 text-xs font-bold uppercase">
+            <Link href="/login?mode=signup" className="btn-pill-primary px-5 py-2.5 text-xs font-bold uppercase">
               Get Started
             </Link>
           </div>
@@ -124,7 +124,7 @@ export default function LandingPage() {
 
           <div className="pt-2 flex flex-wrap gap-4 items-center">
             <Link
-              href="/login"
+              href="/login?mode=signup"
               className="btn-pill-primary px-7 py-3.5 text-xs font-bold uppercase tracking-wider flex items-center gap-2"
             >
               <span>Get Started</span>
@@ -459,7 +459,7 @@ export default function LandingPage() {
               </ul>
             </div>
 
-            <Link href="/login" className="btn-pill-secondary w-full py-3.5 text-xs font-bold uppercase text-center mt-6">
+            <Link href="/login?mode=signup" className="btn-pill-secondary w-full py-3.5 text-xs font-bold uppercase text-center mt-6">
               Current Plan
             </Link>
           </div>
@@ -499,7 +499,7 @@ export default function LandingPage() {
               </ul>
             </div>
 
-            <Link href="/login" className="w-full py-3.5 text-xs font-bold uppercase text-center mt-6 bg-white text-[#004ac6] rounded-full hover:bg-slate-50 transition-all shadow-sm">
+            <Link href="/login?mode=signup" className="w-full py-3.5 text-xs font-bold uppercase text-center mt-6 bg-white text-[#004ac6] rounded-full hover:bg-slate-50 transition-all shadow-sm">
               Get Professional
             </Link>
           </div>
@@ -531,7 +531,7 @@ export default function LandingPage() {
               </ul>
             </div>
 
-            <Link href="/login" className="btn-pill-secondary w-full py-3.5 text-xs font-bold uppercase text-center mt-6">
+            <Link href="/login?mode=signup" className="btn-pill-secondary w-full py-3.5 text-xs font-bold uppercase text-center mt-6">
               Contact Sales
             </Link>
           </div>
@@ -596,7 +596,7 @@ export default function LandingPage() {
           </p>
           <div className="pt-4 flex justify-center">
             {/* Glossy Primary pill button */}
-            <Link href="/login" className="btn-pill-primary px-8 py-4 text-xs font-bold uppercase flex items-center gap-2 bg-[#ffffff] text-[#004ac6] hover:bg-slate-50">
+            <Link href="/login?mode=signup" className="btn-pill-primary px-8 py-4 text-xs font-bold uppercase flex items-center gap-2 bg-[#ffffff] text-[#004ac6] hover:bg-slate-50">
               <span>Get Started for Free</span>
               <ChevronRight className="h-4.5 w-4.5" />
             </Link>

@@ -44,13 +44,13 @@ export function AssessmentFlow() {
   const { user, refreshUser } = useAuth();
   const router = useRouter();
 
-  // Tabs: 'intro' | 'overview' | 'grammar' | 'vocab' | 'reading' | 'writing' | 'evaluating' | 'result' | 'roadmap'
-  const [activeTab, setActiveTab] = useState<'intro' | 'overview' | 'grammar' | 'vocab' | 'reading' | 'writing' | 'evaluating' | 'result' | 'roadmap'>('intro');
+  // Tabs: 'intro' | 'overview' | 'grammar' | 'vocab' | 'listening' | 'writing' | 'evaluating' | 'result' | 'roadmap'
+  const [activeTab, setActiveTab] = useState<'intro' | 'overview' | 'grammar' | 'vocab' | 'listening' | 'writing' | 'evaluating' | 'result' | 'roadmap'>('intro');
 
   // Answers states
   const [grammarAnswers, setGrammarAnswers] = useState<Record<string, string>>({});
   const [vocabAnswers, setVocabAnswers] = useState<Record<string, string>>({});
-  const [readingAnswers, setReadingAnswers] = useState<Record<string, string>>({});
+  const [listeningAnswers, setListeningAnswers] = useState<Record<string, string>>({});
   const [writingSubmission, setWritingSubmission] = useState('');
 
   // Diagnostic Test Step Index
@@ -85,8 +85,8 @@ export function AssessmentFlow() {
 
   // Submit test function (declared first so it can be safely referenced)
   const handleSubmitTest = async () => {
-    if (!writingSubmission || writingSubmission.trim().length < 40) {
-      toast.error('Please draft a complete response in the writing section (at least 40 characters)');
+    if (!writingSubmission || writingSubmission.trim().split(/\s+/).length < 50) {
+      toast.error('Please draft a complete response in the writing section (at least 50 words)');
       return;
     }
 
@@ -97,7 +97,7 @@ export function AssessmentFlow() {
       const response = await api.post('/users/placement-test', {
         grammarAnswers,
         vocabularyAnswers: vocabAnswers,
-        readingAnswers,
+        listeningAnswers,
         writingSubmission,
       });
 
@@ -112,8 +112,8 @@ export function AssessmentFlow() {
 
   // Helper to transition tabs and manage timers without useEffect cascading renders
   const handleTransitionToTab = (tab: typeof activeTab) => {
-    if (tab === 'reading') {
-      setTimerSeconds(1200); // 20 minutes
+    if (tab === 'listening') {
+      setTimerSeconds(900); // 15 minutes
     } else if (tab === 'writing') {
       setTimerSeconds(2400); // 40 minutes
     }
@@ -122,14 +122,14 @@ export function AssessmentFlow() {
 
   // Timer runner effect
   useEffect(() => {
-    if (activeTab !== 'reading' && activeTab !== 'writing') return;
+    if (activeTab !== 'listening' && activeTab !== 'writing') return;
     if (timerSeconds <= 0) return;
 
     const interval = setInterval(() => {
       setTimerSeconds((prev) => {
         if (prev <= 1) {
           clearInterval(interval);
-          if (activeTab === 'reading') {
+          if (activeTab === 'listening') {
             handleTransitionToTab('writing');
           } else if (activeTab === 'writing') {
             handleSubmitTest();
@@ -199,6 +199,28 @@ export function AssessmentFlow() {
         D: 'has opened',
       },
     },
+    {
+      id: 'g4',
+      category: 'Conditionals',
+      question: 'If they _______ the instructions carefully, they would not have made that mistake.',
+      options: {
+        A: 'read',
+        B: 'had read',
+        C: 'have read',
+        D: 'would read'
+      },
+    },
+    {
+      id: 'g5',
+      category: 'Subject-Verb Agreement',
+      question: 'Neither the manager nor the employees _______ aware of the new policy.',
+      options: {
+        A: 'is',
+        B: 'are',
+        C: 'was',
+        D: 'has been'
+      },
+    },
   ];
 
   const vocabQuestions = [
@@ -239,6 +261,32 @@ export function AssessmentFlow() {
         B: { title: 'Occasional', desc: 'Happening from time to time; not constant or regular.' },
         C: { title: 'Hasty', desc: 'Done or made with excessive speed or urgency; hurried.' },
         D: { title: 'Ambiguous', desc: 'Open to more than one interpretation; having a double meaning.' }
+      },
+    },
+    {
+      id: 'v4',
+      category: 'Contextual Usage',
+      word: 'Ubiquitous',
+      question: 'Choose the word that describes something found everywhere.',
+      sentence: 'Smartphones have become ubiquitous in modern society.',
+      options: {
+        A: { title: 'Rare', desc: 'Not occurring very often.' },
+        B: { title: 'Ubiquitous', desc: 'Present, appearing, or found everywhere.' },
+        C: { title: 'Obsolete', desc: 'No longer produced or used; out of date.' },
+        D: { title: 'Scarce', desc: 'Insufficient for the demand.' }
+      },
+    },
+    {
+      id: 'v5',
+      category: 'Synonym Identification',
+      word: 'Alleviate',
+      question: 'Choose the word that means to make suffering less severe.',
+      sentence: 'The new medicine helped to alleviate the patient\'s pain.',
+      options: {
+        A: { title: 'Aggravate', desc: 'Make (a problem, injury, or offense) worse or more serious.' },
+        B: { title: 'Intensify', desc: 'Become or make more intense.' },
+        C: { title: 'Alleviate', desc: 'Make (suffering, deficiency, or a problem) less severe.' },
+        D: { title: 'Prolong', desc: 'Extend the duration of.' }
       },
     },
   ];
@@ -284,7 +332,9 @@ export function AssessmentFlow() {
     if (grammarAnswers['g1'] === 'B') score += 1;
     if (grammarAnswers['g2'] === 'C') score += 1;
     if (grammarAnswers['g3'] === 'A') score += 1;
-    return (score / 3) * 100;
+    if (grammarAnswers['g4'] === 'B') score += 1;
+    if (grammarAnswers['g5'] === 'B') score += 1;
+    return (score / 5) * 100;
   };
 
   const getVocabScore = () => {
@@ -292,26 +342,28 @@ export function AssessmentFlow() {
     if (vocabAnswers['v1'] === 'B') score += 1;
     if (vocabAnswers['v2'] === 'A') score += 1;
     if (vocabAnswers['v3'] === 'A') score += 1;
-    return (score / 3) * 100;
+    if (vocabAnswers['v4'] === 'B') score += 1;
+    if (vocabAnswers['v5'] === 'C') score += 1;
+    return (score / 5) * 100;
   };
 
-  const getReadingScore = () => {
+  const getListeningScore = () => {
     let score = 0;
-    if (readingAnswers['q1'] === 'C') score += 1;
-    if (readingAnswers['q2'] === 'A') score += 1;
-    if (readingAnswers['q3'] === 'B') score += 1;
-    if (readingAnswers['q4']?.trim().toLowerCase() === 'pattern recognition') score += 1;
-    if (readingAnswers['q5']?.trim().toLowerCase() === 'critical reasoning') score += 1;
+    if (listeningAnswers['l1'] === 'B') score += 1;
+    if (listeningAnswers['l2'] === 'A') score += 1;
+    if (listeningAnswers['l3'] === 'C') score += 1;
+    if (listeningAnswers['l4']?.trim().toLowerCase() === 'friday') score += 1;
+    if (listeningAnswers['l5']?.trim().toLowerCase() === 'budget') score += 1;
     return (score / 5) * 100;
   };
 
   const getWritingScore = () => {
     if (!writingSubmission) return 0;
     const words = writingSubmission.trim().split(/\s+/).length;
-    if (words > 250) return 90;
-    if (words > 150) return 75;
-    if (words > 80) return 60;
-    if (words > 40) return 45;
+    if (words > 50) return 90;
+    if (words > 40) return 75;
+    if (words > 30) return 60;
+    if (words > 20) return 45;
     return 30;
   };
 
@@ -404,7 +456,7 @@ export function AssessmentFlow() {
                   {[
                     { label: 'Grammar', desc: 'Syntax accuracy & structures' },
                     { label: 'Vocab', desc: 'Lexical resource & range' },
-                    { label: 'Reading', desc: 'Skimming, scanning & speed' },
+                    { label: 'Listening', desc: 'Audio comprehension & detail extraction' },
                     { label: 'Writing', desc: 'Coherence, cohesion & task response' }
                   ].map((s) => (
                     <div key={s.label} className="flex items-center justify-between p-3 rounded-xl hover:bg-[#faf8ff] transition-all border border-transparent hover:border-[#eaedff]">
@@ -412,7 +464,7 @@ export function AssessmentFlow() {
                         <div className="w-8 h-8 rounded-full bg-[#004ac6]/5 flex items-center justify-center text-[#004ac6]">
                           {s.label === 'Grammar' && <span className="material-symbols-outlined text-[18px]">spellcheck</span>}
                           {s.label === 'Vocab' && <span className="material-symbols-outlined text-[18px]">menu_book</span>}
-                          {s.label === 'Reading' && <span className="material-symbols-outlined text-[18px]">chrome_reader_mode</span>}
+                          {s.label === 'Listening' && <span className="material-symbols-outlined text-[18px]">headphones</span>}
                           {s.label === 'Writing' && <span className="material-symbols-outlined text-[18px]">edit_note</span>}
                         </div>
                         <div>
@@ -442,7 +494,7 @@ export function AssessmentFlow() {
           >
             {/* Title / Description */}
             <div className="space-y-1">
-              <h1 className="font-display-lg text-3xl font-extrabold text-[#131b2e]">Your Path to Band {user?.targetBand?.toFixed(1) || '8.5'}</h1>
+              <h1 className="font-display-lg text-3xl font-extrabold text-[#131b2e]">Your English Proficiency Assessment</h1>
               <p className="text-[#737686] text-sm font-semibold">We{"'"}ve tailored this assessment to identify your precise strengths and focus areas.</p>
             </div>
 
@@ -468,10 +520,10 @@ export function AssessmentFlow() {
               {/* Right Bento: Components grid */}
               <div className="lg:col-span-8 grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {[
-                  { part: 'Part 1', label: 'Grammar', desc: 'Sentence structure and grammatical accuracy.', questions: '20 Questions', icon: 'spellcheck', borderHover: 'hover:border-blue-300', bg: 'bg-[#dbe1ff]/20', textColor: 'text-[#004ac6]' },
-                  { part: 'Part 2', label: 'Vocabulary', desc: 'Lexical resource and contextual usage.', questions: '20 Questions', icon: 'menu_book', borderHover: 'hover:border-emerald-300', bg: 'bg-[#6ffbbe]/15', textColor: 'text-[#006242]' },
-                  { part: 'Part 3', label: 'Reading', desc: 'Scanning, skimming, and comprehension.', questions: '1 Academic Passage', icon: 'chrome_reader_mode', borderHover: 'hover:border-slate-350', bg: 'bg-[#d5e4f8]/30', textColor: 'text-[#516070]' },
-                  { part: 'Part 4', label: 'Writing', desc: 'Coherence, cohesion, and task response.', questions: '1 Critical Essay', icon: 'edit_note', borderHover: 'hover:border-rose-300', bg: 'bg-rose-50', textColor: 'text-rose-600' }
+                  { part: 'Part 1', label: 'Grammar', desc: 'Sentence structure and grammatical accuracy.', questions: '5 Questions', icon: 'spellcheck', borderHover: 'hover:border-blue-300', bg: 'bg-[#dbe1ff]/20', textColor: 'text-[#004ac6]' },
+                  { part: 'Part 2', label: 'Vocabulary', desc: 'Lexical resource and contextual usage.', questions: '5 Questions', icon: 'menu_book', borderHover: 'hover:border-emerald-300', bg: 'bg-[#6ffbbe]/15', textColor: 'text-[#006242]' },
+                  { part: 'Part 3', label: 'Listening', desc: 'Audio comprehension and detail extraction.', questions: '5 Questions', icon: 'headphones', borderHover: 'hover:border-slate-350', bg: 'bg-[#d5e4f8]/30', textColor: 'text-[#516070]' },
+                  { part: 'Part 4', label: 'Writing', desc: 'Coherence, cohesion, and task response.', questions: 'Freehand Paragraph', icon: 'edit_note', borderHover: 'hover:border-rose-300', bg: 'bg-rose-50', textColor: 'text-rose-600' }
                 ].map((item) => (
                   <div key={item.label} className={`glass-card p-4 rounded-xl flex flex-col justify-between border border-transparent transition-all duration-300 ${item.borderHover} hover:shadow-sm`}>
                     <div className="flex items-start justify-between mb-4">
@@ -501,12 +553,7 @@ export function AssessmentFlow() {
                 <p className="text-xs text-[#737686] font-semibold">Ensure you are in a quiet environment for the best results.</p>
               </div>
               <div className="flex gap-3 w-full md:w-auto">
-                <button
-                  onClick={() => router.push('/dashboard')}
-                  className="w-full md:w-auto px-6 py-3 border border-[#c3c6d7] hover:bg-slate-50 transition-colors text-xs font-bold rounded-full text-[#434655] cursor-pointer text-center"
-                >
-                  I{"'"}ll do it later
-                </button>
+
                 <button
                   onClick={() => handleTransitionToTab('grammar')}
                   className="w-full md:w-auto px-8 py-3 bg-[#004ac6] text-white hover:bg-[#003ea8] hover:shadow-md transition-all text-xs font-bold rounded-full flex items-center justify-center gap-1.5 cursor-pointer"
@@ -771,18 +818,6 @@ export function AssessmentFlow() {
               <div className="flex gap-4 w-full sm:w-auto">
                 <button
                   onClick={() => {
-                    if (currentVocabIndex < vocabQuestions.length - 1) {
-                      setCurrentVocabIndex(prev => prev + 1);
-                    } else {
-                      handleTransitionToTab('reading');
-                    }
-                  }}
-                  className="flex-1 sm:flex-none px-6 py-3 bg-white border border-[#c3c6d7] text-[#737686] font-bold text-xs rounded-full hover:bg-slate-50 transition-all active:scale-95 cursor-pointer text-center"
-                >
-                  Skip Question
-                </button>
-                <button
-                  onClick={() => {
                     if (!selectedOpt) {
                       toast.error('Please select an option to confirm');
                       return;
@@ -790,7 +825,7 @@ export function AssessmentFlow() {
                     if (currentVocabIndex < vocabQuestions.length - 1) {
                       setCurrentVocabIndex(prev => prev + 1);
                     } else {
-                      handleTransitionToTab('reading');
+                      handleTransitionToTab('listening');
                     }
                   }}
                   disabled={!selectedOpt}
@@ -828,167 +863,151 @@ export function AssessmentFlow() {
         );
       }
 
-      case 'reading':
+      case 'listening':
         return (
           <motion.div
-            key="reading"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
+            key="listening"
+            initial={{ opacity: 0, scale: 0.98 }}
+            animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0 }}
-            className="flex-grow flex flex-col w-full h-[calc(100vh-4rem)] overflow-hidden"
+            className="space-y-8 w-full max-w-4xl my-8"
           >
-            {/* Split Content Pane */}
-            <div className="flex flex-1 overflow-hidden h-full">
-              
-              {/* Left Pane: Reading Passage */}
-              <section className="w-1/2 flex flex-col border-r border-[#c3c6d7]/40 bg-white relative h-full overflow-hidden">
-                <div className="p-6 pb-4 flex justify-between items-end border-b border-[#c3c6d7]/10 shrink-0">
-                  <div>
-                    <h2 className="font-headline-lg text-xl font-bold text-[#131b2e]">The Rise of Cognitive Automation</h2>
-                    <p className="text-[#737686] text-[10px] font-bold uppercase tracking-wider mt-0.5">Passage 1 | Time recommended: 20 minutes</p>
-                  </div>
-                  <button
-                    onClick={() => {
-                      setHighlightToggle(prev => !prev);
-                      toast.success(highlightToggle ? 'Highlight Tool Disabled' : 'Highlight Tool Enabled: Click and select text inside the passage to draw highlights.', { id: 'highlight-tool' });
-                    }}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-[10px] font-bold transition-all cursor-pointer uppercase ${
-                      highlightToggle 
-                        ? 'bg-amber-100 border-amber-300 text-amber-800' 
-                        : 'border-[#c3c6d7]/35 text-[#004ac6] hover:bg-slate-50'
-                    }`}
-                  >
-                    <Brush className="h-3.5 w-3.5" />
-                    <span>Highlight Tool</span>
-                  </button>
+            {/* Progress Section */}
+            <div className="w-full">
+              <div className="flex justify-between items-end mb-3">
+                <div>
+                  <span className="text-[#004ac6] font-bold text-xs uppercase tracking-widest">Listening Proficiency</span>
+                  <h3 className="font-headline-md text-lg font-bold text-[#131b2e] mt-1">Audio Assessment</h3>
+                </div>
+              </div>
+            </div>
+
+            {/* Audio Card */}
+            <div className="glass-card rounded-2xl p-6 lg:p-8 relative overflow-hidden border border-[#c3c6d7]/35 shadow-xl flex flex-col md:flex-row items-center gap-6">
+              <div className="absolute top-0 left-0 w-1.5 h-full bg-[#004ac6]"></div>
+              <div className="w-16 h-16 shrink-0 bg-[#004ac6]/10 rounded-full flex items-center justify-center text-[#004ac6]">
+                <span className="material-symbols-outlined text-3xl">headphones</span>
+              </div>
+              <div className="flex-1 text-center md:text-left">
+                <h2 className="font-headline-lg text-xl font-bold text-[#131b2e]">Office Renovation Planning</h2>
+                <p className="text-[#737686] text-xs font-semibold leading-relaxed mt-1">
+                  Listen to the conversation between two managers discussing the upcoming office renovation. You will hear the audio only once.
+                </p>
+              </div>
+              <div className="w-full md:w-auto flex-1 max-w-sm shrink-0">
+                <audio controls className="w-full h-10" controlsList="nodownload noplaybackrate">
+                  <source src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" type="audio/mpeg" />
+                  Your browser does not support the audio element.
+                </audio>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Questions 1-3 (Multiple Choice) */}
+              <div className="glass-card rounded-2xl p-6 relative overflow-hidden border border-[#c3c6d7]/35 shadow-xl space-y-4">
+                <div className="bg-[#eaedff]/40 border border-[#004ac6]/10 p-3.5 rounded-xl">
+                  <span className="text-[10px] font-black text-[#004ac6] uppercase tracking-wider block mb-1">Instructions</span>
+                  <p className="text-xs font-semibold text-[#434655]">
+                    Choose the correct letter (A, B, or C).
+                  </p>
                 </div>
 
-                {/* Passage Text */}
-                <div className={`flex-1 overflow-y-auto px-6 py-6 space-y-6 text-sm leading-relaxed text-[#131b2e]/90 select-text ${
-                  highlightToggle ? 'selection:bg-yellow-200' : 'selection:bg-[#004ac6]/10'
-                }`}>
-                  <p>
-                    <span className="font-bold text-[#004ac6] mr-1">A.</span> Cognitive automation represents the intersection of traditional robotic process automation (RPA) and artificial intelligence. Unlike its predecessor, which primarily handled repetitive, rule-based tasks, cognitive automation is designed to mimic human thought patterns. It leverages machine learning, natural language processing, and pattern recognition to manage complex data sets and make semi-autonomous decisions. This shift marks a significant milestone in the Fourth Industrial Revolution.
-                  </p>
+                {[
+                  { 
+                    id: 'l1', 
+                    text: '1. The main topic of the conversation is about ___.',
+                    options: ['A. Office relocation', 'B. Renovation timeline', 'C. New software']
+                  },
+                  { 
+                    id: 'l2', 
+                    text: '2. The speaker mentions that the new policy will start next ___.',
+                    options: ['A. week', 'B. month', 'C. year']
+                  },
+                  { 
+                    id: 'l3', 
+                    text: '3. What is the biggest challenge mentioned by the speaker?',
+                    options: ['A. Budget', 'B. Noise', 'C. Staff availability']
+                  }
+                ].map((item) => (
+                  <div key={item.id} className="flex flex-col gap-3 border-b border-[#c3c6d7]/30 pb-4 last:border-0 last:pb-0">
+                    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                      <span className="text-xs font-bold text-[#131b2e] leading-snug">{item.text}</span>
+                      <select
+                        value={listeningAnswers[item.id] || ''}
+                        onChange={(e) => setListeningAnswers(prev => ({ ...prev, [item.id]: e.target.value }))}
+                        className="bg-white border border-[#c3c6d7]/60 text-xs font-bold rounded-lg px-3 py-1.5 focus:outline-none focus:border-[#2563eb] text-[#434655] cursor-pointer shadow-sm shrink-0"
+                      >
+                        <option value="">-</option>
+                        <option value="A">A</option>
+                        <option value="B">B</option>
+                        <option value="C">C</option>
+                      </select>
+                    </div>
+                    <div className="flex flex-col gap-1.5 pl-3 border-l-2 border-[#004ac6]/10">
+                      {item.options.map((opt, i) => (
+                        <span key={i} className="text-[11px] font-semibold text-[#434655]">{opt}</span>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
 
-                  <p>
-                    <span className="font-bold text-[#004ac6] mr-1">B.</span> One of the most compelling applications of this technology is found in the financial sector. Analysts are increasingly using sophisticated algorithms to scan thousands of regulatory documents and market reports in seconds. Where a human team might take weeks to identify a potential risk factor, these systems can highlight anomalies in real-time, providing a competitive edge that was previously unimaginable.
+              {/* Questions 4-5 (Text Inputs) */}
+              <div className="glass-card rounded-2xl p-6 relative overflow-hidden border border-[#c3c6d7]/35 shadow-xl space-y-4">
+                <div className="bg-[#eaedff]/40 border border-[#004ac6]/10 p-3.5 rounded-xl">
+                  <span className="text-[10px] font-black text-[#004ac6] uppercase tracking-wider block mb-1">Instructions</span>
+                  <p className="text-xs font-semibold text-[#434655]">
+                    Complete the sentences below. Write NO MORE THAN ONE WORD.
                   </p>
+                </div>
 
-                  {/* Inline Illustration Image */}
-                  <div className="my-6 rounded-2xl overflow-hidden border border-[#c3c6d7]/20 shadow-md">
-                    <img 
-                      src="https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=600&q=80" 
-                      alt="Modern computer workplace setup visualizing corporate artificial intelligence" 
-                      className="w-full h-48 object-cover" 
+                <div className="space-y-4 text-xs font-semibold text-[#434655]">
+                  <div className="space-y-2">
+                    <p className="leading-relaxed">
+                      4. The participants agreed to meet again on <span className="text-[#004ac6] font-bold">________</span>.
+                    </p>
+                    <input
+                      type="text"
+                      placeholder="your answer"
+                      value={listeningAnswers['l4'] || ''}
+                      onChange={(e) => setListeningAnswers(prev => ({ ...prev, l4: e.target.value }))}
+                      className="w-full max-w-xs rounded-lg border border-[#c3c6d7]/60 bg-white px-3 py-2 text-xs font-bold focus:outline-none focus:border-[#2563eb] shadow-sm"
                     />
                   </div>
 
-                  <p>
-                    <span className="font-bold text-[#004ac6] mr-1">C.</span> However, the integration of such advanced systems is not without its limitations. Educators and academics have raised critical questions about the impact of automated reasoning tools on learning environments. Specifically, concerns regarding algorithmic biases in grading templates and the potential erosion of independent critical reasoning skills prompt institutions to remain highly cautious before roll-outs.
-                  </p>
-                </div>
-              </section>
-
-              {/* Right Pane: Reading Questions */}
-              <section className="w-1/2 flex flex-col bg-[#faf8ff] h-full overflow-hidden">
-                <div className="flex-grow overflow-y-auto p-6 space-y-6">
-                  
-                  {/* Instructions Header */}
-                  <div className="space-y-1">
-                    <h3 className="text-base font-extrabold text-[#131b2e]">Questions 1–5</h3>
-                    <p className="text-xs text-[#737686] font-semibold">Complete the answers on the right by reviewing the passage details on the left.</p>
+                  <div className="space-y-2">
+                    <p className="leading-relaxed">
+                      5. The final decision depends on the <span className="text-[#004ac6] font-bold">________</span>.
+                    </p>
+                    <input
+                      type="text"
+                      placeholder="your answer"
+                      value={listeningAnswers['l5'] || ''}
+                      onChange={(e) => setListeningAnswers(prev => ({ ...prev, l5: e.target.value }))}
+                      className="w-full max-w-xs rounded-lg border border-[#c3c6d7]/60 bg-white px-3 py-2 text-xs font-bold focus:outline-none focus:border-[#2563eb] shadow-sm"
+                    />
                   </div>
-
-                  {/* Questions 1-3 (Matching Dropdowns) */}
-                  <div className="bg-white border border-[#c3c6d7]/35 rounded-2xl p-5 shadow-sm space-y-4">
-                    <div className="bg-[#eaedff]/40 border border-[#004ac6]/10 p-3.5 rounded-xl">
-                      <span className="text-[10px] font-black text-[#004ac6] uppercase tracking-wider block mb-1">Instructions</span>
-                      <p className="text-xs font-semibold text-[#434655]">
-                        Which paragraph contains the following information? Choose the correct letter (A–C) from the dropdown select list.
-                      </p>
-                    </div>
-
-                    {[
-                      { id: 'q1', text: '1. A reference to educational doubts associated with AI algorithms.' },
-                      { id: 'q2', text: '2. The core definitions of cognitive automation and RPA.' },
-                      { id: 'q3', text: '3. A description of real-time data inspection in financial models.' }
-                    ].map((item) => (
-                      <div key={item.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-50 pb-3 last:border-0 last:pb-0">
-                        <span className="text-xs font-bold text-[#131b2e] leading-snug">{item.text}</span>
-                        <select
-                          value={readingAnswers[item.id] || ''}
-                          onChange={(e) => setReadingAnswers(prev => ({ ...prev, [item.id]: e.target.value }))}
-                          className="bg-slate-50 border border-[#c3c6d7]/60 text-xs font-bold rounded-lg px-3 py-1.5 focus:outline-none focus:border-[#2563eb] text-[#434655] cursor-pointer"
-                        >
-                          <option value="">-</option>
-                          <option value="A">A</option>
-                          <option value="B">B</option>
-                          <option value="C">C</option>
-                        </select>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Questions 4-5 (Text Inputs) */}
-                  <div className="bg-white border border-[#c3c6d7]/35 rounded-2xl p-5 shadow-sm space-y-4">
-                    <div className="bg-[#eaedff]/40 border border-[#004ac6]/10 p-3.5 rounded-xl">
-                      <span className="text-[10px] font-black text-[#004ac6] uppercase tracking-wider block mb-1">Instructions</span>
-                      <p className="text-xs font-semibold text-[#434655]">
-                        Complete the sentences below. Choose NO MORE THAN TWO WORDS from the passage for each answer.
-                      </p>
-                    </div>
-
-                    <div className="space-y-4 text-xs font-semibold text-[#434655]">
-                      <div className="space-y-2">
-                        <p className="leading-relaxed">
-                          4. Cognitive automation utilizes natural language processing and <span className="text-[#004ac6] font-bold">________</span> to manage complex data sets.
-                        </p>
-                        <input
-                          type="text"
-                          placeholder="your answer"
-                          value={readingAnswers['q4'] || ''}
-                          onChange={(e) => setReadingAnswers(prev => ({ ...prev, q4: e.target.value }))}
-                          className="w-full max-w-xs rounded-lg border border-[#c3c6d7]/60 bg-slate-50 px-3 py-2 text-xs font-bold focus:outline-none focus:border-[#2563eb]"
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <p className="leading-relaxed">
-                          5. Academic critics are concerned about the erosion of independent <span className="text-[#004ac6] font-bold">________</span> skills.
-                        </p>
-                        <input
-                          type="text"
-                          placeholder="your answer"
-                          value={readingAnswers['q5'] || ''}
-                          onChange={(e) => setReadingAnswers(prev => ({ ...prev, q5: e.target.value }))}
-                          className="w-full max-w-xs rounded-lg border border-[#c3c6d7]/60 bg-slate-50 px-3 py-2 text-xs font-bold focus:outline-none focus:border-[#2563eb]"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
                 </div>
+              </div>
+            </div>
 
-                {/* Footer Controls */}
-                <div className="p-4 bg-white border-t border-[#c3c6d7]/20 flex justify-between items-center shrink-0">
-                  <button
-                    onClick={() => handleTransitionToTab('vocab')}
-                    className="flex items-center gap-1.5 px-6 py-2.5 rounded-lg border border-[#c3c6d7] text-xs font-bold text-[#737686] hover:bg-slate-50 active:scale-95 transition-all cursor-pointer"
-                  >
-                    <ArrowLeft className="h-4 w-4" />
-                    Back
-                  </button>
-                  <button
-                    onClick={() => handleTransitionToTab('writing')}
-                    className="px-8 py-2.5 bg-[#004ac6] text-white font-bold text-xs rounded-lg shadow-md hover:bg-[#003ea8] active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer"
-                  >
-                    Next Section
-                    <ChevronRight className="h-4 w-4" />
-                  </button>
-                </div>
-              </section>
+            {/* Navigation buttons */}
+            <div className="flex justify-between items-center w-full pt-4">
+              <button
+                onClick={() => handleTransitionToTab('vocab')}
+                className="flex items-center gap-1.5 px-6 py-3 rounded-xl font-bold text-xs text-[#737686] hover:bg-slate-100 active:scale-95 transition-all cursor-pointer"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Previous Section
+              </button>
 
+              <button
+                onClick={() => handleTransitionToTab('writing')}
+                className="px-8 py-3 bg-gradient-to-r from-[#3B82F6] to-[#2563EB] text-white flex items-center gap-1.5 rounded-xl font-bold text-xs shadow-md shadow-[#2563eb]/20 active:scale-95 hover:scale-[1.02] transition-all cursor-pointer"
+              >
+                Next Section
+                <ArrowRight className="h-4 w-4" />
+              </button>
             </div>
           </motion.div>
         );
@@ -1009,19 +1028,19 @@ export function AssessmentFlow() {
               <section className="w-2/5 flex flex-col border-r border-[#c3c6d7]/40 bg-white p-6 relative overflow-y-auto justify-between">
                 <div className="space-y-6">
                   <span className="inline-flex items-center px-3.5 py-1 bg-teal-50 text-teal-700 border border-teal-100 rounded-full text-[10px] font-bold uppercase tracking-wider">
-                    Academic Writing Task 2
+                    Freehand Paragraph
                   </span>
                   
                   <h2 className="font-display-lg text-lg lg:text-xl font-extrabold text-[#131b2e]">
-                    The Impact of AI on Global Employment
+                    Describe a recent technological change in your life
                   </h2>
 
                   <div className="space-y-4 text-xs font-semibold text-[#434655] leading-relaxed">
                     <p>
-                      Some people believe that artificial intelligence will eventually replace human workers in almost all industries, leading to mass unemployment. Others argue that AI will create new types of jobs and enhance human productivity.
+                      Technology is constantly evolving and changing how we live, work, and communicate.
                     </p>
                     <p className="font-bold text-[#131b2e] border-l-2 border-[#2563eb] pl-3">
-                      Discuss both views and give your own opinion. Give reasons for your answer and include any relevant examples from your own knowledge or experience. Write at least 250 words.
+                      Write a short paragraph describing a recent technological change in your life. Explain how it has impacted your daily routine. Write at least 50 words.
                     </p>
                   </div>
                 </div>
@@ -1088,9 +1107,9 @@ export function AssessmentFlow() {
                   <div className="flex items-center gap-2 text-xs font-bold text-[#434655]">
                     <span>Word Count:</span>
                     <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black ${
-                      wordCount >= 250 ? 'bg-emerald-500/10 text-emerald-700' : 'bg-slate-100 text-[#737686]'
+                      wordCount >= 50 ? 'bg-emerald-500/10 text-emerald-700' : 'bg-slate-100 text-[#737686]'
                     }`}>
-                      {wordCount} / 250 min
+                      {wordCount} / 50 min
                     </span>
                   </div>
 
@@ -1238,7 +1257,7 @@ export function AssessmentFlow() {
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-[#c3c6d7]/20">
               <div className="space-y-2">
                 <span className="inline-flex items-center px-3 py-1 bg-[#006242]/10 text-[#006242] border border-[#006242]/15 rounded-full text-[10px] font-bold uppercase tracking-wider">
-                  Step 14 of 15 • Assessment Complete
+                  Step 8 of 9 • Assessment Complete
                 </span>
                 <h1 className="font-display-lg text-3xl font-extrabold text-[#131b2e]">Congratulations 🎉</h1>
                 <p className="text-sm font-semibold text-[#737686] max-w-lg leading-relaxed">
@@ -1320,15 +1339,15 @@ export function AssessmentFlow() {
                       <line x1="50" y1="10" x2="50" y2="90" stroke="#e2e8f0" strokeWidth="0.5" />
                       <line x1="10" y1="50" x2="90" y2="50" stroke="#e2e8f0" strokeWidth="0.5" />
                       
-                      {/* Points: Reading, Vocab, Writing, Grammar */}
+                      {/* Points: Listening, Vocab, Writing, Grammar */}
                       <polygon 
-                        points={`50,${50 - 40 * (getReadingScore() / 100)} ${50 + 40 * (getVocabScore() / 100)},50 50,${50 + 40 * (getWritingScore() / 100)} ${50 - 40 * (getGrammarScore() / 100)},50`} 
+                        points={`50,${50 - 40 * (getListeningScore() / 100)} ${50 + 40 * (getVocabScore() / 100)},50 50,${50 + 40 * (getWritingScore() / 100)} ${50 - 40 * (getGrammarScore() / 100)},50`} 
                         fill="rgba(37, 99, 235, 0.15)" 
                         stroke="#2563eb" 
                         strokeWidth="1.5" 
                       />
                       
-                      <text x="50" y="6" textAnchor="middle" className="text-[5px] font-bold fill-slate-500">READING</text>
+                      <text x="50" y="6" textAnchor="middle" className="text-[5px] font-bold fill-slate-500">LISTENING</text>
                       <text x="96" y="52" textAnchor="middle" className="text-[5px] font-bold fill-slate-500">VOCABULARY</text>
                       <text x="50" y="98" textAnchor="middle" className="text-[5px] font-bold fill-slate-500">WRITING</text>
                       <text x="4" y="52" textAnchor="middle" className="text-[5px] font-bold fill-slate-500">GRAMMAR</text>
@@ -1339,7 +1358,7 @@ export function AssessmentFlow() {
                   <div className="flex-grow w-full space-y-4">
                     {(evaluationResult?.strengths?.length 
                       ? evaluationResult.strengths 
-                      : (getReadingScore() >= 60 ? ['Good text skimming speed', 'Solid key-matching accuracy'] : ['Good basic comprehension effort', 'Clear intent focus'])
+                      : (getListeningScore() >= 60 ? ['Good audio comprehension', 'Solid detail extraction accuracy'] : ['Good basic comprehension effort', 'Clear intent focus'])
                     ).slice(0, 2).map((strength: string, idx: number) => (
                       <div key={`str-${idx}`} className="p-4 bg-[#006242]/5 border border-[#006242]/10 rounded-xl flex items-start gap-3">
                         <TrendingUp className="h-5 w-5 text-[#006242] shrink-0" />
@@ -1669,7 +1688,7 @@ export function AssessmentFlow() {
     }
   };
 
-  const showSidebar = activeTab !== 'reading' && activeTab !== 'writing' && activeTab !== 'evaluating' && activeTab !== 'roadmap';
+  const showSidebar = activeTab !== 'roadmap';
 
   return (
     <div className="flex h-screen bg-[#faf8ff] text-slate-900 overflow-hidden font-sans">
@@ -1682,33 +1701,74 @@ export function AssessmentFlow() {
             {/* Header Brand */}
             <div>
               <h2 className="font-display-lg text-xl font-black text-[#004ac6] tracking-tighter">Future Scholar</h2>
-              <p className="text-[#737686] text-xs font-bold uppercase tracking-wider mt-0.5">
-                Target: Band {user?.targetBand?.toFixed(1) || '8.5'}
-              </p>
+              {user?.onboardingCompleted && (
+                <p className="text-[#737686] text-xs font-bold uppercase tracking-wider mt-0.5">
+                  Target: Band {user?.targetBand?.toFixed(1) || '8.5'}
+                </p>
+              )}
             </div>
 
             {/* Navigation Links list */}
             <div className="space-y-1.5">
               {[
-                { id: 'onboarding', label: 'Onboarding', icon: <Compass className="h-4.5 w-4.5" />, path: '/onboarding' },
-                { id: 'assessment', label: 'Assessment', icon: <GraduationCap className="h-4.5 w-4.5" />, path: '/assessment', active: true },
-                { id: 'roadmap', label: 'Roadmap', icon: <Map className="h-4.5 w-4.5" />, path: '#' },
-                { id: 'performance', label: 'Performance', icon: <TrendingUp className="h-4.5 w-4.5" />, path: '#' },
-                { id: 'settings', label: 'Settings', icon: <Settings className="h-4.5 w-4.5" />, path: '#' },
+                { 
+                  id: 'assessment', 
+                  label: activeTab === 'result' ? 'Assessment Complete' : 'Assessment', 
+                  icon: <GraduationCap className="h-4.5 w-4.5" />, 
+                  path: '/assessment', 
+                  active: activeTab !== 'result', 
+                  done: activeTab === 'result' 
+                },
+                { 
+                  id: 'onboarding', 
+                  label: 'Onboarding', 
+                  icon: <Compass className="h-4.5 w-4.5" />, 
+                  path: '/onboarding',
+                  active: false,
+                  done: false,
+                  highlight: activeTab === 'result'
+                },
+                { id: 'roadmap', label: 'Roadmap', icon: <Map className="h-4.5 w-4.5" />, path: '#', active: false, done: false },
+                { id: 'performance', label: 'Performance', icon: <TrendingUp className="h-4.5 w-4.5" />, path: '#', active: false, done: false },
+                { id: 'settings', label: 'Settings', icon: <Settings className="h-4.5 w-4.5" />, path: '#', active: false, done: false },
               ].map((tab) => {
                 const isActive = tab.active;
+                const isDone = tab.done;
+                const isHighlight = tab.highlight;
+                const isDisabled = !isActive && (!user?.assessmentCompleted) && !isHighlight;
+                
                 return (
                   <button
                     key={tab.id}
-                    onClick={() => tab.path !== '#' ? router.push(tab.path) : toast.success('This section will unlock after completing the placement assessment.')}
-                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all text-left cursor-pointer ${
+                    onClick={() => {
+                      if (isActive) return;
+                      if (isDisabled) {
+                        toast.error('Please complete the assessment first.');
+                        return;
+                      }
+                      if (tab.path !== '#') {
+                        router.push(tab.path);
+                      } else {
+                        toast.success('This section will unlock later.');
+                      }
+                    }}
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all text-left ${
                       isActive
                         ? 'bg-[#004ac6] text-white shadow-md shadow-[#004ac6]/10'
-                        : 'text-[#434655] hover:bg-slate-100 hover:text-slate-950 hover:translate-x-1'
+                        : isDone
+                        ? 'text-[#006242] bg-emerald-50 hover:bg-emerald-100 cursor-pointer'
+                        : isHighlight
+                        ? 'text-[#004ac6] bg-[#eaedff] hover:bg-[#d5e4f8] cursor-pointer animate-pulse'
+                        : isDisabled
+                        ? 'text-[#c3c6d7] cursor-not-allowed bg-transparent'
+                        : 'text-[#434655] hover:bg-slate-100 hover:text-slate-950 hover:translate-x-1 cursor-pointer'
                     }`}
                   >
-                    <span className={isActive ? 'text-white' : 'text-[#737686]'}>{tab.icon}</span>
-                    <span>{tab.label}</span>
+                    <span className={isActive || isHighlight ? (isHighlight ? 'text-[#004ac6]' : 'text-white') : isDone ? 'text-[#006242]' : isDisabled ? 'text-[#c3c6d7]' : 'text-[#737686]'}>
+                      {tab.icon}
+                    </span>
+                    <span className="flex-1">{tab.label}</span>
+                    {isDone && <span className="material-symbols-outlined text-[16px]">check_circle</span>}
                   </button>
                 );
               })}
@@ -1733,21 +1793,18 @@ export function AssessmentFlow() {
             <div className="h-6 w-px bg-[#c3c6d7]/30 mx-2 hidden md:block"></div>
             <div className="hidden md:flex items-center gap-3">
               <span className="text-xs font-bold text-[#737686] bg-slate-100 px-3 py-1 rounded-full">
-                {activeTab === 'reading' && 'Step 11 of 15'}
-                {activeTab === 'writing' && 'Step 12 of 15'}
-                {activeTab === 'evaluating' && 'Step 13 of 15'}
-                {activeTab === 'roadmap' && 'Step 15 of 15'}
+                {activeTab === 'evaluating' && 'Step 7 of 9'}
+                {activeTab === 'roadmap' && 'Step 9 of 9'}
               </span>
               <span className="text-xs font-black text-[#004ac6] uppercase tracking-wider">
                 {activeTab === 'reading' && 'Reading Assessment'}
-                {activeTab === 'writing' && 'Writing Assessment'}
                 {activeTab === 'evaluating' && 'Processing Assessment'}
                 {activeTab === 'roadmap' && 'Milestone Roadmap'}
               </span>
             </div>
           </div>
           <div className="flex items-center gap-6">
-            {(activeTab === 'reading' || activeTab === 'writing') && (
+            {activeTab === 'reading' && (
               <div className="flex items-center gap-2 px-4 py-2 bg-rose-50 rounded-full border border-rose-100 text-rose-600 shadow-sm animate-pulse">
                 <Clock className="h-4 w-4" />
                 <span className="text-xs font-bold tabular-nums">{formatTimer(timerSeconds)}</span>
@@ -1791,14 +1848,16 @@ export function AssessmentFlow() {
         }`}>
           
           {/* Header Progress step section (for intro/overview/grammar/vocab tabs) */}
-          {showSidebar && activeTab !== 'result' && (
+          {showSidebar && activeTab !== 'evaluating' && activeTab !== 'result' && (
             <div className="shrink-0 space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-[#004ac6] font-bold text-xs uppercase tracking-widest">
-                  {activeTab === 'intro' && 'Step 7 of 15'}
-                  {activeTab === 'overview' && 'Step 8 of 15'}
-                  {activeTab === 'grammar' && 'Step 9 of 15'}
-                  {activeTab === 'vocab' && 'Step 10 of 15'}
+                  {activeTab === 'intro' && 'Step 1 of 9'}
+                  {activeTab === 'overview' && 'Step 2 of 9'}
+                  {activeTab === 'grammar' && 'Step 3 of 9'}
+                  {activeTab === 'vocab' && 'Step 4 of 9'}
+                  {activeTab === 'listening' && 'Step 5 of 9'}
+                  {activeTab === 'writing' && 'Step 6 of 9'}
                 </span>
                 <span className="text-[#737686] text-xs font-bold">Placement Phase</span>
               </div>
@@ -1807,9 +1866,11 @@ export function AssessmentFlow() {
                   className="h-full bg-[#004ac6] rounded-full transition-all duration-700 ease-out" 
                   style={{ 
                     width: 
-                      activeTab === 'intro' ? '46.6%' : 
-                      activeTab === 'overview' ? '53.3%' :
-                      activeTab === 'grammar' ? '60%' : '66.6%'
+                      activeTab === 'intro' ? '11.1%' : 
+                      activeTab === 'overview' ? '22.2%' :
+                      activeTab === 'grammar' ? '33.3%' : 
+                      activeTab === 'vocab' ? '44.4%' : 
+                      activeTab === 'listening' ? '55.5%' : '66.6%'
                   }}
                 />
               </div>
@@ -1818,16 +1879,9 @@ export function AssessmentFlow() {
 
           {/* Render Tab Content */}
           <div className="flex-1 flex items-center justify-center w-full h-full">
-            {/* If taking diagnostic questions, put them in a beautiful, focused centered container card */}
-            {activeTab !== 'intro' && activeTab !== 'overview' && activeTab !== 'reading' && activeTab !== 'writing' && activeTab !== 'evaluating' && activeTab !== 'roadmap' && activeTab !== 'result' ? (
-              <div className="w-full max-w-xl bg-white border border-[#c3c6d7]/35 rounded-3xl p-6 lg:p-8 shadow-xl">
-                <AnimatePresence mode="wait">
-                  {renderContent()}
-                </AnimatePresence>
-              </div>
-            ) : (
-              renderContent()
-            )}
+            <AnimatePresence mode="wait">
+              {renderContent()}
+            </AnimatePresence>
           </div>
 
         </div>

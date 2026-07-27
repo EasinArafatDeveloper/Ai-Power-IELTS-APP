@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/auth-context';
 import { api } from '@/lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Loader2, TrendingUp, Target, Award, BookOpen, Flame, ChevronRight, Sparkles, Clock, Calendar } from 'lucide-react';
+import { Loader2, TrendingUp, Target, Award, BookOpen, Flame, ChevronRight, Sparkles, Clock, Calendar, GraduationCap, Compass, Map, Settings } from 'lucide-react';
 import toast from 'react-hot-toast';
 import ProtectedRoute from '@/components/shared/protected-route';
 
@@ -190,7 +190,7 @@ function OnboardingForm() {
       setRoadmapData(response.data);
       await refreshUser();
       toast.success('Goals configured! Generating your personalized roadmap...');
-      setStep(6);
+      setStep(7);
     } catch (e: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
       console.error(e);
       toast.error(e.response?.data?.message || 'Failed to submit onboarding details');
@@ -254,83 +254,102 @@ function OnboardingForm() {
   };
 
   return (
-    <div className="bg-[#faf8ff] text-[#131b2e] font-body-md min-h-screen flex flex-col overflow-x-hidden selection:bg-[#004ac6]/10">
+    <div className="flex h-screen bg-[#faf8ff] text-slate-900 overflow-hidden font-sans">
       
-      {/* Background decoration grid */}
-      <div className="fixed inset-0 pointer-events-none -z-10 overflow-hidden">
-        <div className="dot-grid absolute inset-0"></div>
-        {/* Atmospheric ambient blobs */}
-        <div className="absolute top-1/4 -left-20 w-96 h-96 bg-[#004ac6]/5 rounded-full blur-[100px] animate-float"></div>
-        <div className="absolute bottom-1/4 -right-20 w-80 h-80 bg-[#006242]/5 rounded-full blur-[100px] animate-float" style={{ animationDelay: '-3s' }}></div>
-      </div>
-
-      {/* TOP NAVIGATION BAR */}
-      <nav className="fixed top-0 left-0 right-0 w-full z-50 bg-[#faf8ff]/70 backdrop-blur-xl border-b border-[#c3c6d7]/10 shadow-[0_8px_32px_0_rgba(15,23,42,0.04)]">
-        <div className="max-w-[1280px] mx-auto px-6 h-16 flex justify-between items-center w-full">
-          <div className="flex items-center gap-2">
-            <span className="font-display-lg text-headline-md text-[#004ac6] tracking-tighter font-extrabold text-xl">IELTS.ai</span>
+      {/* 1. Left Navigation Sidebar */}
+      <aside className="w-64 bg-white border-r border-[#c3c6d7]/35 p-6 flex flex-col justify-between shrink-0 h-full hidden lg:flex">
+        <div className="space-y-8">
+          
+          {/* Header Brand */}
+          <div>
+            <h2 className="font-display-lg text-xl font-black text-[#004ac6] tracking-tighter">Future Scholar</h2>
           </div>
 
-          <div className="flex items-center gap-4">
-            {step > 1 && (
-              <div className="hidden md:flex gap-1">
-                {renderProgressPills(
-                  step === 2 ? 3 :
-                  step === 3 ? 4 :
-                  step === 4 ? 5 : 6
-                )}
-              </div>
-            )}
-            
-            <div className="flex items-center gap-2 bg-[#d5e4f8] px-3 py-1 rounded-full">
-              <span className="font-label-sm text-[#0e1d2b] font-bold text-[10px] uppercase tracking-wider">
-                {step === 1 && 'STEP 1 OF 6'}
-                {step === 2 && 'STEP 2 OF 6'}
-                {step === 3 && 'STEP 3 OF 6'}
-                {step === 4 && 'STEP 4 OF 6'}
-                {step === 5 && 'STEP 5 OF 6'}
-                {step === 6 && 'ROADMAP'}
-              </span>
-            </div>
-
-            <button className="hover:bg-black/5 transition-colors p-2 rounded-full">
-              <span className="material-symbols-outlined text-[#004ac6] text-[24px]">account_circle</span>
-            </button>
+          {/* Navigation Links list */}
+          <div className="space-y-1.5">
+            {[
+              { id: 'assessment', label: 'Assessment Complete', icon: <GraduationCap className="h-4.5 w-4.5" />, path: '/assessment', active: false, done: true },
+              { id: 'onboarding', label: 'Onboarding', icon: <Compass className="h-4.5 w-4.5" />, path: '/onboarding', active: true, done: false },
+              { id: 'roadmap', label: 'Roadmap', icon: <Map className="h-4.5 w-4.5" />, path: '#', active: false, done: false },
+              { id: 'performance', label: 'Performance', icon: <TrendingUp className="h-4.5 w-4.5" />, path: '#', active: false, done: false },
+              { id: 'settings', label: 'Settings', icon: <Settings className="h-4.5 w-4.5" />, path: '#', active: false, done: false },
+            ].map((tab) => {
+              const isActive = tab.active;
+              const isDone = tab.done;
+              const isDisabled = !isActive && !isDone;
+              
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => {
+                    if (isActive) return;
+                    if (isDisabled) {
+                      toast.error('Please complete the current step first.');
+                      return;
+                    }
+                    if (tab.path !== '#') {
+                      router.push(tab.path);
+                    }
+                  }}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all text-left ${
+                    isActive
+                      ? 'bg-[#004ac6] text-white shadow-md shadow-[#004ac6]/10'
+                      : isDone
+                      ? 'text-[#006242] bg-emerald-50 hover:bg-emerald-100 cursor-pointer'
+                      : 'text-[#c3c6d7] cursor-not-allowed bg-transparent'
+                  }`}
+                >
+                  <span className={isActive ? 'text-white' : isDone ? 'text-[#006242]' : 'text-[#c3c6d7]'}>{tab.icon}</span>
+                  <span className="flex-1">{tab.label}</span>
+                  {isDone && <span className="material-symbols-outlined text-[16px]">check_circle</span>}
+                </button>
+              );
+            })}
           </div>
         </div>
-      </nav>
 
-      {/* MAIN CANVAS */}
-      <main className="flex-1 flex flex-col items-center pt-24 pb-16 px-6 max-w-5xl mx-auto w-full justify-center">
+        {/* Upgrade to Pro Button */}
+        <button
+          onClick={() => toast.success('Pro upgrading is coming soon!')}
+          className="mt-auto bg-[#eaedff] text-[#004ac6] py-3 px-4 rounded-xl font-bold hover:scale-[1.02] active:scale-95 transition-all text-xs cursor-pointer border border-[#004ac6]/10"
+        >
+          Upgrade to Pro
+        </button>
+      </aside>
+
+      {/* 2. Right Workspace Content Canvas */}
+      <main className="flex-1 overflow-y-auto bg-[#faf8ff]/85 h-full relative lg:pl-0">
         
-        {/* Progress Tracker Bar (Hidden on welcome step) */}
-        {step !== 1 && (
-          <div className="w-full max-w-md mb-8 animate-reveal">
-            <div className="flex justify-between items-center mb-2">
-              <span className="font-label-sm text-[#434655] uppercase tracking-widest text-xs font-semibold">
+        {/* Background Atmospheric Effect */}
+        <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
+          <div className="absolute top-1/4 -left-20 w-96 h-96 bg-[#004ac6]/5 rounded-full blur-[120px] animate-float"></div>
+          <div className="absolute bottom-1/4 -right-20 w-80 h-80 bg-[#006242]/5 rounded-full blur-[100px] animate-float" style={{ animationDelay: '-3s' }}></div>
+        </div>
+
+        <div className="max-w-5xl mx-auto relative z-10 h-full flex flex-col justify-center space-y-8 p-6 lg:p-12">
+          
+          {/* Header Progress step section */}
+          <div className="shrink-0 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-[#004ac6] font-bold text-xs uppercase tracking-widest">
+                {step === 1 && 'Step 1 of 6'}
                 {step === 2 && 'Step 2 of 6'}
                 {step === 3 && 'Step 3 of 6'}
                 {step === 4 && 'Step 4 of 6'}
                 {step === 5 && 'Step 5 of 6'}
+                {step === 6 && 'Roadmap'}
               </span>
-              <span className="font-label-sm text-[#004ac6] font-bold text-xs">
-                {step === 2 && '33.3% Complete'}
-                {step === 3 && '50.0% Complete'}
-                {step === 4 && '66.6% Complete'}
-                {step === 5 && '83.3% Complete'}
-              </span>
+              <span className="text-[#737686] text-xs font-bold">Onboarding Phase</span>
             </div>
-            <div className="h-1 w-full bg-[#eaedff] rounded-full overflow-hidden">
-              <motion.div 
-                className="h-full bg-[#004ac6] transition-all duration-700 ease-out" 
-                initial={{ width: getProgressWidth() }}
-                animate={{ width: getProgressWidth() }}
+            <div className="h-1.5 w-full bg-[#eaedff] rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-[#004ac6] rounded-full transition-all duration-700 ease-out" 
+                style={{ width: getProgressWidth() }}
               />
             </div>
           </div>
-        )}
 
-        {/* STEP CONTENT GRID */}
+          {/* STEP CONTENT GRID */}
         <AnimatePresence mode="wait">
           
           {/* STEP 1: Onboarding Welcome split screen gate */}
@@ -824,8 +843,78 @@ function OnboardingForm() {
             </motion.div>
           )}
 
-          {/* STEP 6: Personalized Study Roadmap screen */}
+          {/* STEP 6: Review & Confirm summary */}
           {step === 6 && (
+            <motion.div
+              key="confirm-step"
+              initial={{ opacity: 0, scale: 0.98 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.98 }}
+              className="w-full flex flex-col items-center max-w-2xl mx-auto space-y-8"
+            >
+              <div className="text-center space-y-2 mb-4">
+                <h1 className="font-display-lg text-3xl font-extrabold text-[#131b2e]">Review Your Goals</h1>
+                <p className="text-sm font-semibold text-[#737686]">Verify your details before we generate your custom path.</p>
+              </div>
+
+              <div className="w-full space-y-4">
+                {/* 1. English Level */}
+                <div className="glass-card p-6 rounded-2xl flex items-center justify-between border border-[#c3c6d7]/35 shadow-sm bg-white">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-full bg-blue-50 text-[#004ac6] flex items-center justify-center">
+                      <Award className="h-6 w-6" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-bold text-[#737686] uppercase tracking-wider mb-0.5">Current English Level</p>
+                      <h4 className="text-base font-bold text-[#131b2e]">{baselineStats?.cefrLevel || 'B2'} (Band {baselineStats?.currentBand.toFixed(1) || '6.0'})</h4>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2. Target Goal */}
+                <div className="glass-card p-6 rounded-2xl flex items-center justify-between border border-[#c3c6d7]/35 shadow-sm bg-white">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                      <Target className="h-6 w-6" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-bold text-[#737686] uppercase tracking-wider mb-0.5">Target Band</p>
+                      <h4 className="text-base font-bold text-[#131b2e]">Band {targetBand?.toFixed(1) || '7.5'}</h4>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 3. Study Intent */}
+                <div className="glass-card p-6 rounded-2xl flex items-center justify-between border border-[#c3c6d7]/35 shadow-sm bg-white">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-full bg-purple-50 text-purple-600 flex items-center justify-center">
+                      <BookOpen className="h-6 w-6" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-bold text-[#737686] uppercase tracking-wider mb-0.5">Study Intent</p>
+                      <h4 className="text-base font-bold text-[#131b2e]">{intent === 'academic' ? 'Academic / University' : intent === 'general' ? 'General / Immigration' : intent}</h4>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 4. Daily Commitment */}
+                <div className="glass-card p-6 rounded-2xl flex items-center justify-between border border-[#c3c6d7]/35 shadow-sm bg-white">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center">
+                      <Flame className="h-6 w-6" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-bold text-[#737686] uppercase tracking-wider mb-0.5">Daily Commitment</p>
+                      <h4 className="text-base font-bold text-[#131b2e]">{studyTime} Minutes per day</h4>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* STEP 7: Personalized Study Roadmap screen */}
+          {step === 7 && (
             <motion.div
               key="roadmap-step"
               initial={{ opacity: 0, y: 15 }}
@@ -1002,7 +1091,7 @@ function OnboardingForm() {
         </AnimatePresence>
 
         {/* BOTTOM ACTION FOOTER BUTTONS */}
-        {step !== 6 && (
+        {step !== 7 && (
           <div className="mt-16 flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
             {step === 1 ? (
               null
@@ -1027,11 +1116,24 @@ function OnboardingForm() {
                 
                 {step === 5 ? (
                   <button
-                    onClick={handleSubmitOnboarding}
-                    disabled={studyTime === null || loading}
+                    onClick={() => setStep(6)}
+                    disabled={studyTime === null}
                     className={`w-full md:w-64 px-8 py-4 rounded-full font-label-md text-white transition-all flex items-center justify-center gap-2 text-sm font-bold relative overflow-hidden ${
-                      studyTime !== null && !loading
-                        ? 'cursor-pointer hover:shadow-[0_12px_24px_rgba(37,99,235,0.2)] hover:scale-105 active:scale-95'
+                      studyTime !== null
+                        ? 'cursor-pointer hover:shadow-[0_12px_24px_rgba(37,99,235,0.2)] hover:scale-105 active:scale-95 bg-gradient-to-r from-[#004ac6] to-[#2563eb]'
+                        : 'opacity-50 cursor-not-allowed bg-slate-200 text-[#737686]'
+                    }`}
+                  >
+                    Continue
+                    <span className="material-symbols-outlined text-sm">arrow_forward</span>
+                  </button>
+                ) : step === 6 ? (
+                  <button
+                    onClick={handleSubmitOnboarding}
+                    disabled={loading}
+                    className={`w-full md:w-64 px-8 py-4 rounded-full font-label-md text-white transition-all flex items-center justify-center gap-2 text-sm font-bold relative overflow-hidden ${
+                      !loading
+                        ? 'cursor-pointer hover:shadow-[0_12px_24px_rgba(16,185,129,0.3)] hover:scale-105 active:scale-95 bg-emerald-600'
                         : 'opacity-50 cursor-not-allowed bg-slate-200 text-[#737686]'
                     }`}
                   >
@@ -1040,12 +1142,9 @@ function OnboardingForm() {
                     ) : (
                       <>
                         <span className="relative z-10 flex items-center justify-center gap-2">
-                          Continue
-                          <span className="material-symbols-outlined text-sm">arrow_forward</span>
+                          Confirm & Generate
+                          <span className="material-symbols-outlined text-sm">check_circle</span>
                         </span>
-                        {studyTime !== null && (
-                          <div className="absolute inset-0 bg-gradient-to-r from-[#004ac6] to-[#2563eb] transition-opacity duration-300" />
-                        )}
                       </>
                     )}
                   </button>
@@ -1081,6 +1180,7 @@ function OnboardingForm() {
           </div>
         )}
 
+        </div>
       </main>
 
     </div>

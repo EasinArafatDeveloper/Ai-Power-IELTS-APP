@@ -54,11 +54,16 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
 
   if (!user) return null;
 
-  if (pathname !== '/onboarding' && !user.onboardingCompleted) {
-    return null;
+  if (pathname === '/assessment' && !user.assessmentCompleted) {
+    return <>{children}</>;
   }
-  if (pathname !== '/onboarding' && pathname !== '/assessment' && !user.assessmentCompleted) {
-    return null;
+
+  if (pathname === '/onboarding' && !user.onboardingCompleted) {
+    return <>{children}</>;
+  }
+
+  if (!user.assessmentCompleted || !user.onboardingCompleted) {
+    return null; // wait for redirect
   }
 
   return <>{children}</>;

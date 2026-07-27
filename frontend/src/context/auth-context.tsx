@@ -2,15 +2,6 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import {
-  auth,
-  onAuthStateChanged,
-  signOut,
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  googleProvider,
-  signInWithPopup,
-} from '@/lib/firebase';
 import { api } from '@/lib/api';
 import toast from 'react-hot-toast';
 
@@ -31,7 +22,6 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   loginMock: (email: string) => Promise<void>;
   signup: (email: string, password: string, fullName: string) => Promise<void>;
-  loginWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
@@ -42,37 +32,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
-  const pathname = usePathname();
 
-  const handleBackendLogin = async (idToken: string) => {
-    try {
-      const response = await api.post('/auth/firebase-login', { idToken });
-      const { token, user: backendUser } = response.data;
-      localStorage.setItem('token', token);
-      setUser(backendUser);
-      toast.success('Successfully logged in!');
-      
-      // Redirect based on onboarding state
-      if (!backendUser.assessmentCompleted) {
-        router.push('/assessment');
-      } else if (!backendUser.onboardingCompleted) {
-        router.push('/onboarding');
-      } else {
-        router.push('/dashboard');
-      }
-    } catch (error: any) {
-      console.error('Backend login error:', error);
-      toast.error(error.response?.data?.message || 'Failed to authenticate with backend');
-      localStorage.removeItem('token');
-      setUser(null);
+  const handleAuthResponse = (data: any) => {
+    const { token, user: backendUser } = data;
+    localStorage.setItem('token', token);
+    setUser(backendUser);
+    
+    // Redirect based on onboarding state
+    if (!backendUser.assessmentCompleted) {
+      router.push('/assessment');
+    } else if (!backendUser.onboardingCompleted) {
+      router.push('/onboarding');
+    } else {
+      router.push('/dashboard');
     }
   };
 
   const loginMock = async (email: string) => {
     setLoading(true);
     try {
-      const mockToken = `mock-token-${email}`;
-      await handleBackendLogin(mockToken);
+      const response = await api.post('/auth/login', { email: `dev@${email}`, password: 'password123' });
+      handleAuthResponse(response.data);
+      toast.success('Successfully logged in (mock)!');
     } catch (e: any) {
       console.error(e);
       toast.error('Mock authentication failed');
@@ -84,12 +65,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = async (email: string, password: string) => {
     setLoading(true);
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      const idToken = await userCredential.user.getIdToken();
-      await handleBackendLogin(idToken);
+      const response = await api.post('/auth/login', { email, password });
+      handleAuthResponse(response.data);
+      toast.success('Successfully logged in!');
     } catch (error: any) {
-      console.error('Firebase login error:', error);
-      toast.error(error.message || 'Firebase login failed');
+      console.error('Login error:', error);
+      toast.error(error.response?.data?.message || 'Login failed');
+    } finally {
       setLoading(false);
     }
   };
@@ -97,25 +79,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signup = async (email: string, password: string, fullName: string) => {
     setLoading(true);
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const idToken = await userCredential.user.getIdToken();
-      await handleBackendLogin(idToken);
+      const response = await api.post('/auth/register', { email, password, fullName });
+      handleAuthResponse(response.data);
+      toast.success('Account created successfully!');
     } catch (error: any) {
-      console.error('Firebase signup error:', error);
-      toast.error(error.message || 'Firebase registration failed');
-      setLoading(false);
-    }
-  };
-
-  const loginWithGoogle = async () => {
-    setLoading(true);
-    try {
-      const userCredential = await signInWithPopup(auth, googleProvider);
-      const idToken = await userCredential.user.getIdToken();
-      await handleBackendLogin(idToken);
-    } catch (error: any) {
-      console.error('Google Auth error:', error);
-      toast.error(error.message || 'Google Authentication failed');
+      console.error('Signup error:', error);
+      toast.error(error.response?.data?.message || 'Registration failed');
+    } finally {
       setLoading(false);
     }
   };
@@ -123,7 +93,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = async () => {
     setLoading(true);
     try {
-      await signOut(auth);
       localStorage.removeItem('token');
       setUser(null);
       toast.success('Logged out successfully');
@@ -138,37 +107,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const refreshUser = async () => {
     const token = localStorage.getItem('token');
-    if (!token) return;
+    if (!token) {
+      setLoading(false);
+      return;
+    }
+    
     try {
       const response = await api.get('/users/me');
       setUser(response.data);
     } catch (error) {
       console.error('Failed to refresh user:', error);
+      localStorage.removeItem('token');
+      setUser(null);
+    } finally {
+      setLoading(false);
     }
   };
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      const token = localStorage.getItem('token');
-      
-      if (firebaseUser) {
-        if (!token) {
-          const idToken = await firebaseUser.getIdToken();
-          await handleBackendLogin(idToken);
-        } else {
-          await refreshUser();
-        }
-      } else {
-        if (token) {
-          await refreshUser();
-        } else {
-          setUser(null);
-        }
-      }
-      setLoading(false);
-    });
-
-    return () => unsubscribe();
+    refreshUser();
   }, []);
 
   return (
@@ -179,7 +136,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         login,
         loginMock,
         signup,
-        loginWithGoogle,
         logout,
         refreshUser,
       }}

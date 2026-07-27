@@ -5,8 +5,8 @@ export type UserDocument = User & Document;
 
 @Schema({ timestamps: true })
 export class User {
-  @Prop({ required: true, unique: true, index: true })
-  firebaseUid: string;
+  @Prop({ required: true })
+  password: string;
 
   @Prop({ required: true, unique: true, index: true })
   email: string;
@@ -40,5 +40,5 @@ export class User {
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
-UserSchema.index({ firebaseUid: 1 }, { unique: true });
+
 UserSchema.index({ email: 1 }, { unique: true });

@@ -78,10 +78,10 @@ export class UsersService {
       Below is the student's placement assessment:
       - Grammar Answers (User choices): ${JSON.stringify(dto.grammarAnswers)}
       - Vocabulary Answers (User choices): ${JSON.stringify(dto.vocabularyAnswers)}
-      - Reading Answers (User choices): ${JSON.stringify(dto.readingAnswers)}
+      - Listening Answers (User choices): ${JSON.stringify(dto.listeningAnswers)}
       - Writing Essay response: "${dto.writingSubmission}"
 
-      Evaluate their level based on grammar accuracy, vocabulary usage, reading comprehension answers, and writing structure.
+      Evaluate their level based on grammar accuracy, vocabulary usage, listening comprehension answers, and writing structure.
       Generate:
       1. Overall estimated IELTS Band (e.g. 5.5, 6.0, 7.5 - values from 1.0 to 9.0 in increments of 0.5)
       2. CEFR Level (A1, A2, B1, B2, C1, or C2)

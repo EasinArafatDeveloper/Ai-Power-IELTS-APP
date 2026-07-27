@@ -11,7 +11,7 @@ export class PlacementTestDto {
 
   @IsNotEmpty()
   @IsObject()
-  readingAnswers: Record<string, string>;
+  listeningAnswers: Record<string, string>;
 
   @IsNotEmpty()
   @IsString()

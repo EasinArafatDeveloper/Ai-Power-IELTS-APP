@@ -1,20 +1,21 @@
 import { Controller, Post, Body, HttpCode, HttpStatus } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { IsNotEmpty, IsString } from 'class-validator';
-
-export class FirebaseLoginDto {
-  @IsNotEmpty()
-  @IsString()
-  idToken: string;
-}
+import { RegisterDto } from './dtos/register.dto';
+import { LoginDto } from './dtos/login.dto';
 
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  @Post('firebase-login')
+  @Post('register')
+  @HttpCode(HttpStatus.CREATED)
+  async register(@Body() body: RegisterDto) {
+    return this.authService.register(body.email, body.password, body.fullName);
+  }
+
+  @Post('login')
   @HttpCode(HttpStatus.OK)
-  async firebaseLogin(@Body() body: FirebaseLoginDto) {
-    return this.authService.loginWithFirebase(body.idToken);
+  async login(@Body() body: LoginDto) {
+    return this.authService.login(body.email, body.password);
   }
 }

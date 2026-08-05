@@ -28,8 +28,8 @@ async function bootstrap() {
     }),
   );
 
-  const port = parseInt(process.env.PORT || '4000', 10);
-  await app.listen(port, '0.0.0.0');
-  console.log(`Application is running on: http://localhost:${port}/api`);
+  const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 4000;
+  await app.listen(port);
+  console.log(`Application is running on port: ${port}`);
 }
 bootstrap();

@@ -1,3 +1,12 @@
+import * as crypto from 'crypto';
+
+if (typeof (globalThis as any).crypto === 'undefined') {
+  (globalThis as any).crypto = crypto;
+}
+if (typeof (global as any).crypto === 'undefined') {
+  (global as any).crypto = crypto;
+}
+
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ConfigModule, ConfigService } from '@nestjs/config';

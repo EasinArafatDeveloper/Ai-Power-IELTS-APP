@@ -44,8 +44,8 @@ export function AssessmentFlow() {
   const { user, refreshUser } = useAuth();
   const router = useRouter();
 
-  // Tabs: 'intro' | 'overview' | 'grammar' | 'vocab' | 'listening' | 'writing' | 'evaluating' | 'result' | 'roadmap'
-  const [activeTab, setActiveTab] = useState<'intro' | 'overview' | 'grammar' | 'vocab' | 'listening' | 'writing' | 'evaluating' | 'result' | 'roadmap'>('intro');
+  // Tabs: 'intro' | 'overview' | 'grammar' | 'vocab' | 'listening' | 'reading' | 'writing' | 'evaluating' | 'result' | 'roadmap'
+  const [activeTab, setActiveTab] = useState<'intro' | 'overview' | 'grammar' | 'vocab' | 'listening' | 'reading' | 'writing' | 'evaluating' | 'result' | 'roadmap'>('intro');
 
   // Answers states
   const [grammarAnswers, setGrammarAnswers] = useState<Record<string, string>>({});
@@ -1688,7 +1688,7 @@ export function AssessmentFlow() {
     }
   };
 
-  const showSidebar = activeTab !== 'roadmap';
+  const showSidebar = !(['reading', 'listening', 'writing', 'evaluating', 'roadmap'] as string[]).includes(activeTab);
 
   return (
     <div className="flex h-screen bg-[#faf8ff] text-slate-900 overflow-hidden font-sans">

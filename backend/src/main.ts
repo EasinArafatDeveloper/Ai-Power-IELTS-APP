@@ -16,8 +16,8 @@ async function bootstrap() {
     credentials: true,
   });
 
-  // Set global endpoint prefix
-  app.setGlobalPrefix('api');
+  // Set global endpoint prefix (excluding root path /)
+  app.setGlobalPrefix('api', { exclude: ['/'] });
 
   // Input validation pipes
   app.useGlobalPipes(

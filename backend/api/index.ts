@@ -6,31 +6,36 @@ import express from 'express';
 import { ExpressAdapter } from '@nestjs/platform-express';
 
 const server = express();
+let isInitialized = false;
 
-export const createNestServer = async (expressInstance: express.Express) => {
-  const app = await NestFactory.create(
-    AppModule,
-    new ExpressAdapter(expressInstance),
-  );
+async function bootstrap() {
+  if (!isInitialized) {
+    const app = await NestFactory.create(
+      AppModule,
+      new ExpressAdapter(server),
+    );
 
-  app.use(helmet());
-  app.enableCors({
-    origin: '*',
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
-    credentials: true,
-  });
-  app.setGlobalPrefix('api');
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      transform: true,
-      forbidNonWhitelisted: true,
-    }),
-  );
+    app.use(helmet());
+    app.enableCors({
+      origin: '*',
+      methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+      credentials: true,
+    });
+    app.setGlobalPrefix('api');
+    app.useGlobalPipes(
+      new ValidationPipe({
+        whitelist: true,
+        transform: true,
+        forbidNonWhitelisted: true,
+      }),
+    );
 
-  await app.init();
-};
+    await app.init();
+    isInitialized = true;
+  }
+}
 
-createNestServer(server);
-
-export default server;
+export default async function handler(req: any, res: any) {
+  await bootstrap();
+  server(req, res);
+}

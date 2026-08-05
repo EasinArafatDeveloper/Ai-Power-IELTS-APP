@@ -1,3 +1,14 @@
+import * as crypto from 'crypto';
+
+if (typeof globalThis.crypto === 'undefined') {
+  // @ts-ignore
+  globalThis.crypto = crypto.webcrypto || crypto;
+}
+if (typeof (global as any).crypto === 'undefined') {
+  // @ts-ignore
+  (global as any).crypto = crypto.webcrypto || crypto;
+}
+
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from '../src/app.module';
 import { ValidationPipe } from '@nestjs/common';
